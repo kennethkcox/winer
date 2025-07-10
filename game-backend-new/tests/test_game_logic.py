@@ -1,8 +1,9 @@
 import pytest
 from game_logic import Game, REGIONS, GRAPE_CHARACTERISTICS, VESSEL_TYPES
+from typing import Optional
 from game_models import Player, Vineyard, Grape, Must, WineInProduction, Wine, WineryVessel, Base, DBPlayer, DBVineyard, DBGrape, DBMust, DBWineInProduction, DBWine, DBWineryVessel, DBWinery, DBGameState
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 # Setup a test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_logic.db"

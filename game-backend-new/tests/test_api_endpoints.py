@@ -2,6 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app, get_db
 from game_logic import Game
+from typing import Optional
 from game_models import (
     Player, Vineyard, Winery, Grape, Must, WineInProduction, Wine, GameState, WineryVessel,
     BuyVineyardRequest, TendVineyardRequest, HarvestGrapesRequest, BuyVesselRequest,
@@ -10,7 +11,7 @@ from game_models import (
     Base, DBPlayer, DBVineyard, DBWinery, DBGrape, DBMust, DBWineInProduction, DBWine, DBWineryVessel, DBGameState
 )
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 # Setup a test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
