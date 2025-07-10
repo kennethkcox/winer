@@ -78,7 +78,9 @@ The core gameplay loop involves:
 
 ## API Endpoints
 
-The backend provides a RESTful API to manage the game state. The following are the primary endpoints:
+The backend provides a RESTful API to manage the game state. You can explore the interactive API documentation (Swagger UI) by navigating to `http://localhost:8000/docs` when the backend server is running.
+
+The following are the primary endpoints:
 
 *   `GET /`: Get the current game state.
 *   `POST /advance_month`: Advance the game by one month.
