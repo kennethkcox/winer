@@ -13,7 +13,7 @@ from game_models import (
     DBPlayer, DBVineyard, DBWinery, DBGrape, DBMust, DBWineInProduction, DBWine, DBWineryVessel, DBGameState
 )
 from database import SessionLocal, engine, Base
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 
 # For JWT authentication
