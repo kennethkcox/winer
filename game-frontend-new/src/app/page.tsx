@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Navbar, Nav } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Navbar, Nav, Form, Alert } from "react-bootstrap";
 
 interface Vineyard {
   id?: number;
@@ -101,15 +101,38 @@ export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [token, setToken] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchGameState();
+    const storedToken = localStorage.getItem("accessToken");
+    if (storedToken) {
+      setToken(storedToken);
+      fetchGameState(storedToken);
+    } else {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchGameState = async () => {
+  const fetchGameState = async (authToken: string | null = token) => {
+    setLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${BACKEND_URL}/`);
+      const headers: HeadersInit = {};
+      if (authToken) {
+        headers["Authorization"] = `Bearer ${authToken}`;
+      }
+      const response = await fetch(`${BACKEND_URL}/`, {
+        headers: headers,
+      });
       if (!response.ok) {
+        if (response.status === 401) {
+          setLoginError("Unauthorized. Please log in.");
+          setToken(null);
+          localStorage.removeItem("accessToken");
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: GameState = await response.json();
@@ -126,8 +149,16 @@ export default function Home() {
     try {
       const response = await fetch(`${BACKEND_URL}/advance_month`, {
         method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          setLoginError("Unauthorized. Please log in.");
+          setToken(null);
+          localStorage.removeItem("accessToken");
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: GameState = await response.json();
@@ -139,9 +170,95 @@ export default function Home() {
     }
   };
 
-  if (loading) return <p>Loading game...</p>;
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setLoginError(null);
+    try {
+      const formData = new URLSearchParams();
+      formData.append("username", username);
+      formData.append("password", password);
+
+      const response = await fetch(`${BACKEND_URL}/token`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: formData.toString(),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      localStorage.setItem("accessToken", data.access_token);
+      setToken(data.access_token);
+      await fetchGameState(data.access_token); // Fetch game state with new token
+    } catch (e: any) {
+      setLoginError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem("accessToken");
+    setGameState(null);
+    setLoginError(null);
+    setUsername("");
+    setPassword("");
+    setLoading(false);
+  };
+
+  if (loading && !gameState) return <p>Loading game...</p>;
   if (error) return <p>Error: {error}</p>;
-  if (!gameState) return <p>No game state available.</p>;
+
+  if (!token || !gameState) {
+    return (
+      <Container className="mt-5">
+        <h1 className="text-center mb-4">Terroir & Time: A Natural Winemaking Saga</h1>
+        <Row className="justify-content-md-center">
+          <Col md={6}>
+            <Card className="shadow-sm">
+              <Card.Body>
+                <Card.Title className="text-primary text-center">Login</Card.Title>
+                {loginError && <Alert variant="danger">{loginError}</Alert>}
+                <Form onSubmit={handleLogin}>
+                  <Form.Group className="mb-3" controlId="formBasicEmail">
+                    <Form.Label>Username</Form.Label>
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                    />
+                  </Form.Group>
+
+                  <Form.Group className="mb-3" controlId="formBasicPassword">
+                    <Form.Label>Password</Form.Label>
+                    <Form.Control
+                      type="password"
+                      placeholder="Password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </Form.Group>
+                  <Button variant="primary" type="submit" disabled={loading} className="w-100">
+                    {loading ? "Logging in..." : "Login"}
+                  </Button>
+                </Form>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      </Container>
+    );
+  }
 
   const { player, current_year, current_month_index, months } = gameState;
 
@@ -157,6 +274,9 @@ export default function Home() {
               <Nav.Link href="#vineyards">Vineyards</Nav.Link>
               <Nav.Link href="#winery">Winery</Nav.Link>
               <Nav.Link href="#inventory">Inventory</Nav.Link>
+            </Nav>
+            <Nav>
+              <Button variant="outline-light" onClick={handleLogout}>Logout</Button>
             </Nav>
           </Navbar.Collapse>
         </Container>
