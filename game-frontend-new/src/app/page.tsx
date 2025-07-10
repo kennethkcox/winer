@@ -488,7 +488,7 @@ export default function Home() {
               <Card.Body>
                 <Card.Title className="text-primary">Your Vineyards</Card.Title>
                 {player.vineyards.length === 0 ? (
-                  <Card.Text>You don't own any vineyards yet. Time to buy one!</Card.Text>
+                  <Card.Text>You don&apos;t own any vineyards yet. Time to buy one!</Card.Text>
                 ) : (
                   <Row xs={1} md={2} lg={3} className="g-4">
                     {player.vineyards.map((vineyard, index) => (
