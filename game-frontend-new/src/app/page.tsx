@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Container, Row, Col, Card, Button, Navbar, Nav, Form, Alert } from "react-bootstrap";
+import { Container, Row, Col, Card, Button, Navbar, Nav, Form, Alert, Modal } from "react-bootstrap";
 
 interface Vineyard {
   id?: number;
@@ -95,6 +95,36 @@ interface GameState {
   months: string[];
 }
 
+// --- Game Data (Constants) - Duplicated from backend for frontend display ---
+const REGIONS = {
+  "Willamette Valley": {
+    "climate": "cool",
+    "soil_types": ["volcanic", "sedimentary"],
+    "grape_varietals": ["Pinot Noir", "Chardonnay", "Pinot Gris"],
+    "base_cost": 50000
+  },
+  "Jura": {
+    "climate": "cool",
+    "soil_types": ["marl", "limestone"],
+    "grape_varietals": ["Savagnin", "Poulsard", "Trousseau", "Chardonnay", "Pinot Noir"],
+    "base_cost": 40000
+  },
+  "Northern Rhône": {
+    "climate": "continental",
+    "soil_types": ["granite", "schist"],
+    "grape_varietals": ["Syrah", "Viognier"],
+    "base_cost": 60000
+  }
+};
+
+const VESSEL_TYPES = {
+  "Stainless Steel Tank": {"capacity": 5000, "cost": 10000, "type": "fermentation/aging"},
+  "Open Top Fermenter": {"capacity": 1000, "cost": 2000, "type": "fermentation"},
+  "Neutral Oak Barrel (225L)": {"capacity": 225, "cost": 500, "type": "aging"},
+  "Concrete Egg": {"capacity": 1500, "cost": 7000, "type": "fermentation/aging"},
+  "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
+};
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function Home() {
@@ -105,6 +135,15 @@ export default function Home() {
   const [password, setPassword] = useState<string>("");
   const [token, setToken] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [showBuyVineyardModal, setShowBuyVineyardModal] = useState(false);
+  const [selectedVineyardToBuy, setSelectedVineyardToBuy] = useState<any>(null);
+  const [newVineyardName, setNewVineyardName] = useState<string>("");
+  const [buyVineyardError, setBuyVineyardError] = useState<string | null>(null);
+
+  const [showBuyVesselModal, setShowBuyVesselModal] = useState(false);
+  const [selectedVesselToBuy, setSelectedVesselToBuy] = useState<any>(null);
+  const [buyVesselError, setBuyVesselError] = useState<string | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem("accessToken");
@@ -213,6 +252,112 @@ export default function Home() {
     setLoading(false);
   };
 
+  const handleBuyVineyard = async () => {
+    if (!selectedVineyardToBuy || !newVineyardName) return;
+    setBuyVineyardError(null);
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/buy_vineyard`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          vineyard_data: selectedVineyardToBuy,
+          vineyard_name: newVineyardName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState(); // Refresh game state
+      setShowBuyVineyardModal(false);
+      setNewVineyardName("");
+      setSelectedVineyardToBuy(null);
+    } catch (e: any) {
+      setBuyVineyardError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleTendVineyard = async (vineyardName: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/tend_vineyard`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ vineyard_name: vineyardName }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleHarvestGrapes = async (vineyardName: string) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/harvest_grapes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ vineyard_name: vineyardName }),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBuyVessel = async () => {
+    if (!selectedVesselToBuy) return;
+    setBuyVesselError(null);
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/buy_vessel`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ vessel_type_name: selectedVesselToBuy.name }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState(); // Refresh game state
+      setShowBuyVesselModal(false);
+      setSelectedVesselToBuy(null);
+    } catch (e: any) {
+      setBuyVesselError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading && !gameState) return <p>Loading game...</p>;
   if (error) return <p>Error: {error}</p>;
 
@@ -222,7 +367,7 @@ export default function Home() {
         <h1 className="text-center mb-4">Terroir & Time: A Natural Winemaking Saga</h1>
         <Row className="justify-content-md-center">
           <Col md={6}>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-dark text-white">
               <Card.Body>
                 <Card.Title className="text-primary text-center">Login</Card.Title>
                 {loginError && <Alert variant="danger">{loginError}</Alert>}
@@ -235,6 +380,7 @@ export default function Home() {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
+                      className="bg-secondary text-white border-secondary"
                     />
                   </Form.Group>
 
@@ -246,6 +392,7 @@ export default function Home() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      className="bg-secondary text-white border-secondary"
                     />
                   </Form.Group>
                   <Button variant="primary" type="submit" disabled={loading} className="w-100">
@@ -282,13 +429,13 @@ export default function Home() {
         </Container>
       </Navbar>
 
-      <Container className="mt-5">
-        <h1 className="text-center mb-4">Terroir & Time: A Natural Winemaking Saga</h1>
+      <Container className="mt-5 text-white">
+        <h1 className="text-center mb-4 text-primary">Terroir & Time: A Natural Winemaking Saga</h1>
 
         {/* Game Status Section */}
         <Row id="game" className="mb-4">
           <Col>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-dark text-white">
               <Card.Body>
                 <Card.Title className="text-primary">Game Status</Card.Title>
                 <Card.Text>
@@ -317,7 +464,7 @@ export default function Home() {
         {/* Player Info Section */}
         <Row className="mb-4">
           <Col>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-dark text-white">
               <Card.Body>
                 <Card.Title className="text-primary">Player Info</Card.Title>
                 <Card.Text>
@@ -337,7 +484,7 @@ export default function Home() {
         {/* Vineyards Section */}
         <Row id="vineyards" className="mb-4">
           <Col>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-dark text-white">
               <Card.Body>
                 <Card.Title className="text-primary">Your Vineyards</Card.Title>
                 {player.vineyards.length === 0 ? (
@@ -346,7 +493,7 @@ export default function Home() {
                   <Row xs={1} md={2} lg={3} className="g-4">
                     {player.vineyards.map((vineyard, index) => (
                       <Col key={index}>
-                        <Card className="h-100">
+                        <Card className="h-100 bg-secondary text-white">
                           <Card.Body>
                             <Card.Title>{vineyard.name} ({vineyard.varietal})</Card.Title>
                             <Card.Text>Region: {vineyard.region}</Card.Text>
@@ -354,13 +501,30 @@ export default function Home() {
                             <Card.Text>Health: {vineyard.health}%</Card.Text>
                             <Card.Text>Grapes Ready: {vineyard.grapes_ready ? "Yes" : "No"}</Card.Text>
                             <Card.Text>Harvested This Year: {vineyard.harvested_this_year ? "Yes" : "No"}</Card.Text>
-                            {/* Add actions like Tend, Harvest here */}
+                            <Button
+                              variant="info"
+                              className="me-2"
+                              onClick={() => handleTendVineyard(vineyard.name)}
+                              disabled={loading}
+                            >
+                              Tend
+                            </Button>
+                            <Button
+                              variant="warning"
+                              onClick={() => handleHarvestGrapes(vineyard.name)}
+                              disabled={loading || !vineyard.grapes_ready || vineyard.harvested_this_year}
+                            >
+                              Harvest
+                            </Button>
                           </Card.Body>
                         </Card>
                       </Col>
                     ))}
                   </Row>
                 )}
+                <Button variant="primary" className="mt-3" onClick={() => setShowBuyVineyardModal(true)}>
+                  Buy New Vineyard
+                </Button>
               </Card.Body>
             </Card>
           </Col>
@@ -369,7 +533,7 @@ export default function Home() {
         {/* Winery Section */}
         <Row id="winery" className="mb-4">
           <Col>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-dark text-white">
               <Card.Body>
                 <Card.Title className="text-primary">Your Winery</Card.Title>
                 <Card.Text>Winery Name: {player.winery?.name || "N/A"}</Card.Text>
@@ -380,7 +544,7 @@ export default function Home() {
                   <Row xs={1} md={2} lg={3} className="g-4">
                     {player.winery?.vessels.map((vessel, index) => (
                       <Col key={index}>
-                        <Card className="h-100">
+                        <Card className="h-100 bg-secondary text-white">
                           <Card.Body>
                             <Card.Title>{vessel.type}</Card.Title>
                             <Card.Text>Capacity: {vessel.capacity}L</Card.Text>
@@ -391,7 +555,9 @@ export default function Home() {
                     ))}
                   </Row>
                 )}
-                {/* Add sections for Must, Fermenting, Aging wines */}
+                <Button variant="primary" className="mt-3" onClick={() => setShowBuyVesselModal(true)}>
+                  Buy New Vessel
+                </Button>
               </Card.Body>
             </Card>
           </Col>
@@ -400,7 +566,7 @@ export default function Home() {
         {/* Inventory Section */}
         <Row id="inventory" className="mb-4">
           <Col>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-dark text-white">
               <Card.Body>
                 <Card.Title className="text-primary">Inventory</Card.Title>
                 <h5>Grapes:</h5>
@@ -410,7 +576,7 @@ export default function Home() {
                   <Row xs={1} md={2} lg={3} className="g-4">
                     {player.grapes_inventory.map((grape, index) => (
                       <Col key={index}>
-                        <Card className="h-100">
+                        <Card className="h-100 bg-secondary text-white">
                           <Card.Body>
                             <Card.Title>{grape.varietal} ({grape.vintage})</Card.Title>
                             <Card.Text>Quantity: {grape.quantity_kg} kg</Card.Text>
@@ -429,7 +595,7 @@ export default function Home() {
                   <Row xs={1} md={2} lg={3} className="g-4">
                     {player.bottled_wines.map((wine, index) => (
                       <Col key={index}>
-                        <Card className="h-100">
+                        <Card className="h-100 bg-secondary text-white">
                           <Card.Body>
                             <Card.Title>{wine.name} ({wine.vintage})</Card.Title>
                             <Card.Text>Varietal: {wine.varietal}</Card.Text>
@@ -448,6 +614,99 @@ export default function Home() {
         </Row>
 
       </Container>
+
+      {/* Buy Vineyard Modal */}
+      <Modal show={showBuyVineyardModal} onHide={() => setShowBuyVineyardModal(false)} centered dialogClassName="modal-dark">
+        <Modal.Header closeButton className="bg-dark text-white">
+          <Modal.Title>Buy New Vineyard</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          {buyVineyardError && <Alert variant="danger">{buyVineyardError}</Alert>}
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Select Vineyard Type</Form.Label>
+              <Form.Control
+                as="select"
+                onChange={(e) => {
+                  const [region, varietal] = e.target.value.split("|");
+                  setSelectedVineyardToBuy({ ...REGIONS[region], varietal, region, cost: REGIONS[region].base_cost + Math.floor(Math.random() * 10000) - 5000 });
+                }}
+                className="bg-secondary text-white border-secondary"
+              >
+                <option value="">-- Select --</option>
+                {Object.entries(REGIONS).map(([regionName, regionData]) => (
+                  (regionData as any).grape_varietals.map((varietal: string) => (
+                    <option key={`${regionName}-${varietal}`} value={`${regionName}|${varietal}`}>
+                      {varietal} from {regionName} (Est. Cost: ${((regionData as any).base_cost + Math.floor(Math.random() * 10000) - 5000).toLocaleString()})
+                    </option>
+                  ))
+                ))}
+              </Form.Control>
+            </Form.Group>
+            {selectedVineyardToBuy && (
+              <Form.Group className="mb-3">
+                <Form.Label>Vineyard Name</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="Enter a name for your new vineyard"
+                  value={newVineyardName}
+                  onChange={(e) => setNewVineyardName(e.target.value)}
+                  required
+                  className="bg-secondary text-white border-secondary"
+                />
+                <Form.Text className="text-muted">
+                  Cost: ${selectedVineyardToBuy.cost?.toLocaleString() || 'N/A'}
+                </Form.Text>
+              </Form.Group>
+            )}
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="bg-dark border-top border-secondary">
+          <Button variant="secondary" onClick={() => setShowBuyVineyardModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleBuyVineyard} disabled={loading || !selectedVineyardToBuy || !newVineyardName}>
+            Buy Vineyard
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Buy Vessel Modal */}
+      <Modal show={showBuyVesselModal} onHide={() => setShowBuyVesselModal(false)} centered dialogClassName="modal-dark">
+        <Modal.Header closeButton className="bg-dark text-white">
+          <Modal.Title>Buy New Vessel</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          {buyVesselError && <Alert variant="danger">{buyVesselError}</Alert>}
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Select Vessel Type</Form.Label>
+              <Form.Control
+                as="select"
+                onChange={(e) => {
+                  setSelectedVesselToBuy({ name: e.target.value, ...VESSEL_TYPES[e.target.value] });
+                }}
+                className="bg-secondary text-white border-secondary"
+              >
+                <option value="">-- Select --</option>
+                {Object.entries(VESSEL_TYPES).map(([vesselName, vesselData]) => (
+                  <option key={vesselName} value={vesselName}>
+                    {vesselName} (Capacity: {(vesselData as any).capacity}L, Cost: ${(vesselData as any).cost.toLocaleString()})
+                  </option>
+                ))}
+              </Form.Control>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="bg-dark border-top border-secondary">
+          <Button variant="secondary" onClick={() => setShowBuyVesselModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleBuyVessel} disabled={loading || !selectedVesselToBuy}>
+            Buy Vessel
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </>
   );
 }
