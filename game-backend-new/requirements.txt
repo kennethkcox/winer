@@ -4,5 +4,4 @@ pydantic
 pytest
 httpx
 SQLAlchemy
-sqlite3
 python-jose[cryptography]
