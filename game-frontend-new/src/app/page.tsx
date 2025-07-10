@@ -629,7 +629,7 @@ export default function Home() {
                 as="select"
                 onChange={(e) => {
                   const [region, varietal] = e.target.value.split("|");
-                  setSelectedVineyardToBuy({ ...REGIONS[region], varietal, region, cost: REGIONS[region].base_cost + Math.floor(Math.random() * 10000) - 5000 });
+                  setSelectedVineyardToBuy({ ...REGIONS[region as keyof typeof REGIONS], varietal, region, cost: REGIONS[region as keyof typeof REGIONS].base_cost + Math.floor(Math.random() * 10000) - 5000 });
                 }}
                 className="bg-secondary text-white border-secondary"
               >
