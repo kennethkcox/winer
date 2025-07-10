@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
 
 interface Vineyard {
+  id?: number; // Added for database integration
   name: string;
   varietal: string;
   region: string;
@@ -16,20 +17,23 @@ interface Vineyard {
 }
 
 interface WineryVessel {
+  id?: number; // Added for database integration
   type: string;
   capacity: number;
   in_use: boolean;
 }
 
 interface Winery {
+  id?: number; // Added for database integration
   name: string;
   vessels: WineryVessel[];
-  must_in_production: any[]; // Define Must interface later
-  wines_fermenting: any[]; // Define WineInProduction interface later
-  wines_aging: any[]; // Define WineInProduction interface later
+  must_in_production: Must[]; // Define Must interface later
+  wines_fermenting: WineInProduction[]; // Define WineInProduction interface later
+  wines_aging: WineInProduction[]; // Define WineInProduction interface later
 }
 
 interface Grape {
+  id?: number; // Added for database integration
   varietal: string;
   vintage: number;
   quantity_kg: number;
@@ -37,6 +41,7 @@ interface Grape {
 }
 
 interface Must {
+  id?: number; // Added for database integration
   varietal: string;
   vintage: number;
   quantity_kg: number;
@@ -47,6 +52,7 @@ interface Must {
 }
 
 interface WineInProduction {
+  id?: number; // Added for database integration
   varietal: string;
   vintage: number;
   quantity_liters: number;
@@ -61,6 +67,7 @@ interface WineInProduction {
 }
 
 interface Wine {
+  id?: number; // Added for database integration
   name: string;
   vintage: number;
   varietal: string;
@@ -70,6 +77,7 @@ interface Wine {
 }
 
 interface Player {
+  id?: number; // Added for database integration
   name: string;
   money: number;
   reputation: number;
@@ -80,11 +88,14 @@ interface Player {
 }
 
 interface GameState {
+  id?: number; // Added for database integration
   player: Player;
   current_year: number;
   current_month_index: number;
   months: string[];
 }
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -97,7 +108,7 @@ export default function Home() {
 
   const fetchGameState = async () => {
     try {
-      const response = await fetch("http://localhost:8000/");
+      const response = await fetch(`${BACKEND_URL}/`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -113,7 +124,7 @@ export default function Home() {
   const handleAdvanceMonth = async () => {
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8000/advance_month", {
+      const response = await fetch(`${BACKEND_URL}/advance_month`, {
         method: "POST",
       });
       if (!response.ok) {
