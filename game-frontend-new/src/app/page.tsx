@@ -684,7 +684,7 @@ export default function Home() {
               <Form.Control
                 as="select"
                 onChange={(e) => {
-                  setSelectedVesselToBuy({ name: e.target.value, ...VESSEL_TYPES[e.target.value] });
+                  setSelectedVesselToBuy({ name: e.target.value, ...VESSEL_TYPES[e.target.value as keyof typeof VESSEL_TYPES] });
                 }}
                 className="bg-secondary text-white border-secondary"
               >
