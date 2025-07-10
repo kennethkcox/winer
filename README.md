@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Terroir & Time: A Natural Winemaking Saga
+
+Welcome to "Terroir & Time," a simulation game where you embark on the journey of a natural winemaker. From purchasing your first vineyard to bottling your unique creations, every decision you make will shape your wine and your legacy.
+
+This project is a full-stack application featuring a Python-based backend and a modern web-based frontend.
+
+## Project Structure
+
+The repository is organized into two main components:
+
+*   `game-backend-new/`: A backend server built with Python and the FastAPI framework. It handles all game logic, state management, and data persistence.
+*   `game-frontend-new/`: A responsive user interface built with Next.js (a React framework) and TypeScript. It communicates with the backend to provide an interactive gaming experience.
 
 ## Getting Started
 
-First, run the development server:
+To run the full application, you will need to set up and run both the backend and frontend services.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Prerequisites
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+*   Python 3.9+
+*   Node.js 20+
+*   Docker (optional, for containerized deployment)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Backend Setup
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1.  **Navigate to the backend directory:**
+    ```bash
+    cd game-backend-new
+    ```
 
-## Learn More
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+    ```
 
-To learn more about Next.js, take a look at the following resources:
+3.  **Install the required Python packages:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4.  **Run the backend server:**
+    ```bash
+    uvicorn main:app --reload
+    ```
+    The backend API will now be available at `http://localhost:8000`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Frontend Setup
 
-## Deploy on Vercel
+1.  **Navigate to the frontend directory:**
+    ```bash
+    cd game-frontend-new
+    ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+2.  **Install the required Node.js packages:**
+    ```bash
+    npm install
+    ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+3.  **Run the frontend development server:**
+    ```bash
+    npm run dev
+    ```
+    The frontend application will now be available at `http://localhost:3000`.
+
+## How to Play
+
+Once both the frontend and backend are running, open your web browser and navigate to `http://localhost:3000`. The game will load, and you can begin your winemaking journey.
+
+The core gameplay loop involves:
+
+*   **Advancing Time:** Click the "Advance Month" button to move the game forward.
+*   **Managing Resources:** Keep an eye on your money and reputation.
+*   **Vineyard Management:** Purchase and tend to your vineyards.
+*   **Harvesting:** Harvest grapes when they are ready.
+*   **Winemaking:** Process grapes, ferment must, and age wine.
+*   **Bottling:** Bottle your finished wine and build your inventory.
+
+## API Endpoints
+
+The backend provides a RESTful API to manage the game state. The following are the primary endpoints:
+
+*   `GET /`: Get the current game state.
+*   `POST /advance_month`: Advance the game by one month.
+*   `GET /player`: Get player information.
+*   `GET /vineyards`: Get a list of the player's vineyards.
+*   `GET /winery`: Get information about the player's winery.
+*   `POST /buy_vineyard`: Purchase a new vineyard.
+*   `POST /tend_vineyard`: Tend to a vineyard.
+*   `POST /harvest_grapes`: Harvest grapes from a vineyard.
+*   `POST /buy_vessel`: Purchase a new vessel for the winery.
+*   `POST /process_grapes`: Process harvested grapes into must.
+*   `POST /start_fermentation`: Start the fermentation process.
+*   `POST /start_aging`: Start the aging process for a wine.
+*   `POST /bottle_wine`: Bottle a finished wine.
+
+## Technologies Used
+
+*   **Backend:**
+    *   Python
+    *   FastAPI
+    *   Uvicorn
+    *   Pydantic
+*   **Frontend:**
+    *   Next.js
+    *   React
+    *   TypeScript
+    *   Bootstrap
+
+## Docker Deployment
+
+For a more streamlined deployment, you can use Docker to run both the frontend and backend in containers. Dockerfiles are provided in both the `game-backend-new` and `game-frontend-new` directories. You can use a `docker-compose.yml` file to orchestrate the services.
