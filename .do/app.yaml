@@ -4,8 +4,8 @@ services:
   dockerfile_path: game-frontend-new/Dockerfile
   source_dir: game-frontend-new
   github:
-    repo: https://github.com/placeholder-username/placeholder-repo-name
-    branch: main
+    repo: https://github.com/kennethkcox/winer-0.1
+    branch: feat/docker-improvements
   routes:
   - path: /
   envs:
@@ -15,7 +15,7 @@ services:
   dockerfile_path: game-backend-new/Dockerfile
   source_dir: game-backend-new
   github:
-    repo: https://github.com/placeholder-username/placeholder-repo-name
-    branch: main
+    repo: https://github.com/kennethkcox/winer-0.1
+    branch: feat/docker-improvements
   routes:
   - path: /api

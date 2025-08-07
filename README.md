@@ -1,7 +1,7 @@
 # Terroir & Time: A Natural Winemaking Saga
 
-[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/placeholder-username/placeholder-repo-name)
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=placeholder-username/placeholder-repo-name)
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/kennethkcox/winer-0.1)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/kennethkcox/winer-0.1)
 
 Welcome to "Terroir & Time," a simulation game where you embark on the journey of a natural winemaker. From purchasing your first vineyard to bottling your unique creations, every decision you make will shape your wine and your legacy.
 
@@ -11,10 +11,6 @@ This project is a full-stack application featuring a Python-based backend and a 
 
 You can deploy this application to Heroku or DigitalOcean with a single click using the deploy buttons above. This will automatically configure and deploy the application.
 
-**Note:** You will need to replace the placeholder URLs in the following files with your own GitHub repository URL:
-*   `app.json` (for Heroku)
-*   `.do/app.yaml` (for DigitalOcean)
-*   The "Deploy to Heroku" and "Deploy to DigitalOcean" buttons in this `README.md` file.
 
 ## Project Structure
 
