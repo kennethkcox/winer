@@ -1,8 +1,12 @@
 #!/bin/bash
 
 # Check if Docker is running
-if ! docker info > /dev/null 2>&1; then
-    echo "Docker is not running. Please start Docker and try again." >&2
+DOCKER_INFO_OUTPUT=$(docker info 2>&1)
+if [ $? -ne 0 ]; then
+    echo "Error: Could not connect to Docker." >&2
+    echo "Please ensure Docker is running and you have the necessary permissions." >&2
+    echo "Details:" >&2
+    echo "$DOCKER_INFO_OUTPUT" >&2
     exit 1
 fi
 
