@@ -1,8 +1,16 @@
 # Terroir & Time: A Natural Winemaking Saga
 
+[![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
 Welcome to "Terroir & Time," a simulation game where you embark on the journey of a natural winemaker. From purchasing your first vineyard to bottling your unique creations, every decision you make will shape your wine and your legacy.
 
 This project is a full-stack application featuring a Python-based backend and a modern web-based frontend.
+
+## Deploy to Heroku
+
+You can deploy this application to Heroku with a single click using the "Deploy to Heroku" button above. This will automatically configure the application and deploy it to a new Heroku app.
+
+**Note:** You will need to replace the placeholder `repository` and `logo` URLs in the `app.json` file with your own GitHub repository URL and a link to your logo.
 
 ## Project Structure
 
