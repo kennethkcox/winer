@@ -127,7 +127,7 @@ For a consistent and easy-to-manage setup on any operating system (including Win
 
 ### Running the Application with Docker
 
-We have provided a simple script for Windows users to manage the application.
+We have provided simple scripts to manage the application on all major operating systems.
 
 **On Windows:**
 
@@ -141,7 +141,7 @@ Open a PowerShell terminal and run:
 
 Open a terminal and run:
 ```bash
-docker-compose up -d --build
+./run.sh up
 ```
 
 This will build the Docker images for the frontend and backend, start the containers in the background, and persist your game data in the `game-backend-new/data` directory.
@@ -161,5 +161,5 @@ To stop the application and shut down the containers, run:
 
 **On macOS and Linux:**
 ```bash
-docker-compose down
+./run.sh down
 ```
