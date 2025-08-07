@@ -53,7 +53,7 @@ VESSEL_TYPES = {
     "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
 }
 
-class Game:
+class GameService:
     def __init__(self, db: Session):
         self.db = db
         Base.metadata.create_all(bind=engine) # Create tables if they don't exist
@@ -106,7 +106,7 @@ class Game:
             raise Exception("Game state not found. This should not happen after initialization.")
         return GameState.model_validate(db_game_state)
 
-    def advance_month(self):
+    def advance_month(self) -> GameState:
         db_game_state = self.db.query(DBGameState).first()
         db_player = self.db.query(DBPlayer).filter(DBPlayer.id == db_game_state.player_id).first()
 
@@ -149,10 +149,33 @@ class Game:
                     wine_prod.aging_progress += 1
                     logger.debug(f"Aging progress for {wine_prod.varietal}: {wine_prod.aging_progress}/{wine_prod.aging_duration} months.")
         
+        event_message = self._check_for_random_event(db_player)
+
         self.db.commit()
         self.db.refresh(db_game_state)
         self.db.refresh(db_player)
         logger.info(f"Advanced to {db_game_state.months[db_game_state.current_month_index]}, {db_game_state.current_year}.")
+
+        game_state = self.get_game_state()
+        game_state.event_message = event_message
+        return game_state
+
+    def _check_for_random_event(self, player: DBPlayer) -> Optional[str]:
+        if random.random() < 0.15: # 15% chance of an event
+            event_type = random.choice(["money_gain", "money_loss", "reputation_gain"])
+            if event_type == "money_gain":
+                amount = random.randint(500, 2000)
+                player.money += amount
+                return f"A wealthy patron was impressed by your work! You received a grant of ${amount}."
+            elif event_type == "money_loss":
+                amount = random.randint(500, 2000)
+                player.money -= amount
+                return f"Unexpected equipment maintenance costs you ${amount}."
+            elif event_type == "reputation_gain":
+                amount = random.randint(1, 5)
+                player.reputation = min(100, player.reputation + amount)
+                return f"A local critic wrote a glowing review of your winery! Your reputation increased by {amount}."
+        return None
 
     def buy_vineyard(self, region: str, varietal: str, vineyard_name: str) -> Optional[Dict[str, Any]]:
         db_game_state = self.db.query(DBGameState).first()
@@ -457,3 +480,33 @@ class Game:
         for vessel_name, data in VESSEL_TYPES.items():
             available_vessel_types.append({"name": vessel_name, "capacity": data["capacity"], "cost": data["cost"], "type": data["type"]})
         return available_vessel_types
+
+    def sell_wine(self, wine_id: int, bottles: int) -> Optional[Dict[str, Any]]:
+        db_game_state = self.db.query(DBGameState).first()
+        db_player = self.db.query(DBPlayer).filter(DBPlayer.id == db_game_state.player_id).first()
+
+        wine_to_sell = self.db.query(DBWine).filter(DBWine.id == wine_id, DBWine.player_id == db_player.id).first()
+
+        if not wine_to_sell:
+            logger.warning(f"Wine with id {wine_id} not found for player.")
+            return None
+
+        if wine_to_sell.bottles < bottles:
+            logger.warning(f"Not enough bottles of {wine_to_sell.name} to sell.")
+            return None
+
+        price_per_bottle = wine_to_sell.quality * 10 # Simple price calculation
+        total_price = price_per_bottle * bottles
+
+        wine_to_sell.bottles -= bottles
+        db_player.money += total_price
+
+        if wine_to_sell.bottles == 0:
+            self.db.delete(wine_to_sell)
+            logger.info(f"Sold out of {wine_to_sell.name}, removing from inventory.")
+
+        self.db.commit()
+        self.db.refresh(db_player)
+
+        logger.info(f"Sold {bottles} bottles of {wine_to_sell.name} for ${total_price}.")
+        return {"updated_money": db_player.money, "sold_wine_id": wine_id, "bottles_remaining": wine_to_sell.bottles}

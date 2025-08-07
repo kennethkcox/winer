@@ -244,6 +244,7 @@ class GameState(BaseModel):
     current_year: int
     current_month_index: int
     months: List[str]
+    event_message: Optional[str] = None
 
 # Request Body Models
 class BuyVineyardRequest(BaseModel):
@@ -285,3 +286,12 @@ class BottleWineRequest(BaseModel):
 class BuyVineyardResponse(BaseModel):
     new_vineyard: Vineyard
     updated_money: float
+
+class SellWineRequest(BaseModel):
+    wine_id: int
+    bottles: int
+
+class SellWineResponse(BaseModel):
+    updated_money: float
+    sold_wine_id: int
+    bottles_remaining: int

@@ -29,5 +29,12 @@ jobs:
         ruff check game-backend-new
 
     - name: Test with pytest
+      env:
+        SECRET_KEY: test_secret_for_ci
       run: |
-        pytest game-backend-new/tests
+        pytest game-backend-new/
+
+    - name: Scan for vulnerabilities
+      run: |
+        pip install pip-audit
+        pip-audit -r game-backend-new/requirements.txt

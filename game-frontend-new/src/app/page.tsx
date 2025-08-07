@@ -216,6 +216,9 @@ export default function Home() {
       }
       setGameState(data);
       toast.success("Advanced to the next month!");
+      if (data.event_message) {
+        toast.info(data.event_message, { duration: 6000 });
+      }
     } catch (e: any) {
       toast.error(`Failed to advance month: ${e.message}`);
     } finally {
@@ -445,6 +448,58 @@ export default function Home() {
 
   const { player, current_year, current_month_index, months } = gameState;
 
+import { GameStatus } from "./components/GameStatus";
+import { PlayerInfo } from "./components/PlayerInfo";
+import { Vineyards } from "./components/Vineyards";
+import { Winery } from "./components/Winery";
+import { Inventory } from "./components/Inventory";
+import { BuyVineyardModal } from "./components/BuyVineyardModal";
+import { BuyVesselModal } from "./components/BuyVesselModal";
+import { SellWineModal } from "./components/SellWineModal";
+import { Wine } from "./page";
+
+  const { isOpen: isSellWineOpen, onOpen: onSellWineOpen, onClose: onSellWineClose } = useDisclosure();
+  const [wineToSell, setWineToSell] = useState<Wine | null>(null);
+
+  const handleOpenSellWineModal = (wine: Wine) => {
+    setWineToSell(wine);
+    onSellWineOpen();
+  };
+
+  const handleSellWine = async (wineId: number, bottles: number) => {
+    setLoading(true);
+    const toastId = toast.loading(`Selling ${bottles} bottles...`);
+    try {
+      const response = await fetch(`${BACKEND_URL}/sell_wine`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ wine_id: wineId, bottles }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || `HTTP error! status: ${response.status}`);
+      }
+      // Optimistic UI update
+      setGameState(prev => {
+        if (!prev) return null;
+        const newWines = prev.player.bottled_wines.map(w =>
+          w.id === data.sold_wine_id ? { ...w, bottles: data.bottles_remaining } : w
+        ).filter(w => w.bottles > 0);
+        const newPlayer = { ...prev.player, money: data.updated_money, bottled_wines: newWines };
+        return { ...prev, player: newPlayer };
+      });
+      onSellWineClose();
+      toast.success("Wine sold!", { id: toastId });
+    } catch (e: any) {
+      toast.error(`Failed to sell wine: ${e.message}`, { id: toastId });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Box bg="gray.800" color="white" minH="100vh">
       <Toaster position="top-center" reverseOrder={false} />
@@ -460,232 +515,63 @@ export default function Home() {
       <Container maxW="container.xl" pt={8}>
         <Heading as="h2" size="xl" mb={6} textAlign="center">A Natural Winemaking Saga</Heading>
 
-        {/* Game Status Section */}
-        <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" mb={6} bg="gray.700">
-          <Heading fontSize="xl" mb={4}>Game Status</Heading>
-          <Text><strong>Date:</strong> {months[current_month_index]}, {current_year}</Text>
-          <Text><strong>Money:</strong> ${player.money.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-          <Text><strong>Reputation:</strong> {player.reputation}/100</Text>
-          <Text><strong>Grapes:</strong> {(player.grapes_inventory || []).reduce((sum, g) => sum + g.quantity_kg, 0)} kg</Text>
-          <Text><strong>Bottled Wine:</strong> {(player.bottled_wines || []).reduce((sum, w) => sum + w.bottles, 0)} bottles</Text>
-          <Button colorScheme="green" mt={4} onClick={handleAdvanceMonth} isLoading={loading}>
-            Advance Month
-          </Button>
-        </Box>
+        <GameStatus
+          gameState={gameState}
+          player={player}
+          onAdvanceMonth={handleAdvanceMonth}
+          loading={loading}
+        />
 
-        {/* Player Info Section */}
-        <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" mb={6} bg="gray.700">
-          <Heading fontSize="xl" mb={4}>Player Info</Heading>
-          <Text><strong>Name:</strong> {player.name}</Text>
-          <Text><strong>Vineyards Owned:</strong> {player.vineyards.length}</Text>
-          <Text><strong>Winery Vessels:</strong> {player.winery?.vessels.length || 0}</Text>
-        </Box>
+        <PlayerInfo player={player} />
 
-        {/* Vineyards Section */}
-        <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" mb={6} bg="gray.700">
-          <Heading fontSize="xl" mb={4}>Your Vineyards</Heading>
-          {player.vineyards.length === 0 ? (
-            <Text>You don&apos;t own any vineyards yet. Time to buy one!</Text>
-          ) : (
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-              {player.vineyards.map((vineyard, index) => (
-                <Box key={index} p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="gray.600">
-                  <Heading fontSize="lg">{vineyard.name} ({vineyard.varietal})</Heading>
-                  <Text>Region: {vineyard.region}</Text>
-                  <Text>Size: {vineyard.size_acres} acres</Text>
-                  <Text>Health: {vineyard.health}%</Text>
-                  <Text>Grapes Ready: {vineyard.grapes_ready ? "Yes" : "No"}</Text>
-                  <Text>Harvested This Year: {vineyard.harvested_this_year ? "Yes" : "No"}</Text>
-                  <Flex mt={4}>
-                    <Button
-                      colorScheme="blue"
-                      mr={3}
-                      onClick={() => handleTendVineyard(vineyard.name)}
-                      isLoading={loading}
-                    >
-                      Tend
-                    </Button>
-                    <Button
-                      colorScheme="yellow"
-                      onClick={() => handleHarvestGrapes(vineyard.name)}
-                      isDisabled={!vineyard.grapes_ready || vineyard.harvested_this_year}
-                      isLoading={loading}
-                    >
-                      Harvest
-                    </Button>
-                  </Flex>
-                </Box>
-              ))}
-            </SimpleGrid>
-          )}
-          <Button colorScheme="teal" mt={6} onClick={onBuyVineyardOpen}>
-            Buy New Vineyard
-          </Button>
-        </Box>
+        <Vineyards
+          player={player}
+          onTend={handleTendVineyard}
+          onHarvest={handleHarvestGrapes}
+          onOpenBuyVineyard={onBuyVineyardOpen}
+          loading={loading}
+        />
 
-        {/* Winery Section */}
-        <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" mb={6} bg="gray.700">
-          <Heading fontSize="xl" mb={4}>Your Winery</Heading>
-          <Text>Winery Name: {player.winery?.name || "N/A"}</Text>
-          <Heading fontSize="lg" mt={4} mb={2}>Vessels:</Heading>
-          {player.winery?.vessels.length === 0 ? (
-            <Text>No vessels in your winery yet.</Text>
-          ) : (
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-              {player.winery?.vessels.map((vessel, index) => (
-                <Box key={index} p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="gray.600">
-                  <Heading fontSize="lg">{vessel.type}</Heading>
-                  <Text>Capacity: {vessel.capacity}L</Text>
-                  <Text>In Use: {vessel.in_use ? "Yes" : "No"}</Text>
-                </Box>
-              ))}
-            </SimpleGrid>
-          )}
-          <Button colorScheme="teal" mt={6} onClick={onBuyVesselOpen}>
-            Buy New Vessel
-          </Button>
-        </Box>
+        <Winery
+          player={player}
+          onOpenBuyVessel={onBuyVesselOpen}
+        />
 
-        {/* Inventory Section */}
-        <Box p={5} shadow="md" borderWidth="1px" borderRadius="md" mb={6} bg="gray.700">
-          <Heading fontSize="xl" mb={4}>Inventory</Heading>
-          <Heading fontSize="lg" mt={4} mb={2}>Grapes:</Heading>
-          {player.grapes_inventory.length === 0 ? (
-            <Text>No grapes in inventory.</Text>
-          ) : (
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-              {player.grapes_inventory.map((grape, index) => (
-                <Box key={index} p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="gray.600">
-                  <Heading fontSize="lg">{grape.varietal} ({grape.vintage})</Heading>
-                  <Text>Quantity: {grape.quantity_kg} kg</Text>
-                  <Text>Quality: {grape.quality}</Text>
-                </Box>
-              ))}
-            </SimpleGrid>
-          )}
+        <Inventory player={player} onOpenSellWine={handleOpenSellWineModal} />
 
-          <Heading fontSize="lg" mt={4} mb={2}>Bottled Wines:</Heading>
-          {player.bottled_wines.length === 0 ? (
-            <Text>No bottled wines yet.</Text>
-          ) : (
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={6}>
-              {player.bottled_wines.map((wine, index) => (
-                <Box key={index} p={5} shadow="md" borderWidth="1px" borderRadius="md" bg="gray.600">
-                  <Heading fontSize="lg">{wine.name} ({wine.vintage})</Heading>
-                  <Text>Varietal: {wine.varietal}</Text>
-                  <Text>Style: {wine.style}</Text>
-                  <Text>Quality: {wine.quality}</Text>
-                  <Text>Bottles: {wine.bottles}</Text>
-                </Box>
-              ))}
-            </SimpleGrid>
-          )}
-        </Box>
       </Container>
 
-      {/* Buy Vineyard Modal */}
-      <Modal isOpen={isBuyVineyardOpen} onClose={onBuyVineyardClose}>
-        <ModalOverlay />
-        <ModalContent bg="gray.700" color="white">
-          <ModalHeader>Buy New Vineyard</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {buyVineyardError && <Alert status="error" mb={4}><AlertIcon />{buyVineyardError}</Alert>}
-            <FormControl isRequired mb={4}>
-              <FormLabel>Select Vineyard Type</FormLabel>
-              <Select
-                placeholder="-- Select --"
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    setSelectedVineyardToBuy(null);
-                    return;
-                  }
-                  const [region, varietal] = e.target.value.split("|");
-                  setSelectedVineyardToBuy({ region, varietal });
-                }}
-              >
-                {Object.entries(regions).map(([regionName, regionData]: [string, any]) => (
-                  (regionData as any).grape_varietals.map((varietal: string) => (
-                    <option key={`${regionName}-${varietal}`} value={`${regionName}|${varietal}`} style={{ backgroundColor: '#2D3748' }}>
-                      {varietal} from {regionName} (Base Cost: ${regionData.base_cost.toLocaleString()})
-                    </option>
-                  ))
-                ))}
-              </Select>
-            </FormControl>
-            {selectedVineyardToBuy && (
-              <FormControl isRequired>
-                <FormLabel>Vineyard Name</FormLabel>
-                <Input
-                  placeholder="Enter a name for your new vineyard"
-                  value={newVineyardName}
-                  onChange={(e) => setNewVineyardName(e.target.value)}
-                />
-                <Text fontSize="sm" color="gray.400" mt={1}>
-                  The final cost will be determined upon purchase.
-                </Text>
-              </FormControl>
-            )}
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onBuyVineyardClose}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="teal"
-              onClick={handleBuyVineyard}
-              isLoading={loading}
-              isDisabled={!selectedVineyardToBuy || !newVineyardName}
-            >
-              Buy Vineyard
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <SellWineModal
+        isOpen={isSellWineOpen}
+        onClose={onSellWineClose}
+        onSell={handleSellWine}
+        wineToSell={wineToSell}
+        loading={loading}
+      />
 
-      {/* Buy Vessel Modal */}
-      <Modal isOpen={isBuyVesselOpen} onClose={onBuyVesselClose}>
-        <ModalOverlay />
-        <ModalContent bg="gray.700" color="white">
-          <ModalHeader>Buy New Vessel</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            {buyVesselError && <Alert status="error" mb={4}><AlertIcon />{buyVesselError}</Alert>}
-            <FormControl isRequired>
-              <FormLabel>Select Vessel Type</Form.Label>
-              <Select
-                placeholder="-- Select --"
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    setSelectedVesselToBuy(null);
-                    return;
-                  }
-                  setSelectedVesselToBuy({ name: e.target.value });
-                }}
-              >
-                {Object.entries(vesselTypes).map(([vesselName, vesselData]: [string, any]) => (
-                  <option key={vesselName} value={vesselName} style={{ backgroundColor: '#2D3748' }}>
-                    {vesselName} (Capacity: {vesselData.capacity}L, Cost: ${vesselData.cost.toLocaleString()})
-                  </option>
-                ))}
-              </Select>
-            </FormControl>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="ghost" mr={3} onClick={onBuyVesselClose}>
-              Cancel
-            </Button>
-            <Button
-              colorScheme="teal"
-              onClick={handleBuyVessel}
-              isLoading={loading}
-              isDisabled={!selectedVesselToBuy}
-            >
-              Buy Vessel
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <BuyVineyardModal
+        isOpen={isBuyVineyardOpen}
+        onClose={onBuyVineyardClose}
+        onBuy={handleBuyVineyard}
+        regions={regions}
+        selectedVineyardToBuy={selectedVineyardToBuy}
+        setSelectedVineyardToBuy={setSelectedVineyardToBuy}
+        newVineyardName={newVineyardName}
+        setNewVineyardName={setNewVineyardName}
+        buyVineyardError={buyVineyardError}
+        loading={loading}
+      />
+
+      <BuyVesselModal
+        isOpen={isBuyVesselOpen}
+        onClose={onBuyVesselClose}
+        onBuy={handleBuyVessel}
+        vesselTypes={vesselTypes}
+        selectedVesselToBuy={selectedVesselToBuy}
+        setSelectedVesselToBuy={setSelectedVesselToBuy}
+        buyVesselError={buyVesselError}
+        loading={loading}
+      />
     </Box>
   );
 }

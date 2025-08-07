@@ -69,12 +69,13 @@ Once both the frontend and backend are running, open your web browser and naviga
 
 The core gameplay loop involves:
 
-*   **Advancing Time:** Click the "Advance Month" button to move the game forward.
+*   **Advancing Time:** Click the "Advance Month" button to move the game forward. Be aware of random events!
 *   **Managing Resources:** Keep an eye on your money and reputation.
 *   **Vineyard Management:** Purchase and tend to your vineyards.
 *   **Harvesting:** Harvest grapes when they are ready.
 *   **Winemaking:** Process grapes, ferment must, and age wine.
 *   **Bottling:** Bottle your finished wine and build your inventory.
+*   **Selling Wine:** Sell your bottled wine to earn money. The price is determined by the quality of your wine.
 
 ## API Endpoints
 

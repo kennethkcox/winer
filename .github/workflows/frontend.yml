@@ -29,3 +29,7 @@ jobs:
     - name: Build the project
       working-directory: ./game-frontend-new
       run: npm run build
+
+    - name: Scan for vulnerabilities
+      working-directory: ./game-frontend-new
+      run: npm audit
