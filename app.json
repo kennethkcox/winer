@@ -1,0 +1,8 @@
+{
+  "name": "Terroir & Time: A Natural Winemaking Saga",
+  "description": "A simulation game about natural winemaking, with a Python backend and a Next.js frontend.",
+  "repository": "https://github.com/kennethkcox/winer-0.1",
+  "logo": "https://raw.githubusercontent.com/kennethkcox/winer-0.1/feat/docker-improvements/game-frontend-new/public/file.svg",
+  "keywords": ["python", "fastapi", "nextjs", "react", "docker"],
+  "stack": "container"
+}
