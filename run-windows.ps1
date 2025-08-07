@@ -3,9 +3,12 @@ param (
 )
 
 # Check if Docker is running
-$dockerRunning = docker info > $null 2>&1
-if (-not $dockerRunning) {
-    Write-Host "Docker is not running. Please start Docker Desktop and try again." -ForegroundColor Red
+$dockerInfoOutput = docker info 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Error: Could not connect to Docker." -ForegroundColor Red
+    Write-Host "Please ensure Docker is running and you have the necessary permissions." -ForegroundColor Red
+    Write-Host "Details:" -ForegroundColor Red
+    Write-Host $dockerInfoOutput -ForegroundColor Red
     exit 1
 }
 
