@@ -247,7 +247,8 @@ class GameState(BaseModel):
 
 # Request Body Models
 class BuyVineyardRequest(BaseModel):
-    vineyard_data: Dict[str, Any]
+    region: str
+    varietal: str
     vineyard_name: str
 
 class TendVineyardRequest(BaseModel):

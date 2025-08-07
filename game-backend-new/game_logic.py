@@ -154,20 +154,24 @@ class Game:
         self.db.refresh(db_player)
         logger.info(f"Advanced to {db_game_state.months[db_game_state.current_month_index]}, {db_game_state.current_year}.")
 
-    def buy_vineyard(self, vineyard_data: Dict[str, Any], vineyard_name: str) -> Optional[Vineyard]:
+    def buy_vineyard(self, region: str, varietal: str, vineyard_name: str) -> Optional[Vineyard]:
         db_game_state = self.db.query(DBGameState).first()
         db_player = self.db.query(DBPlayer).filter(DBPlayer.id == db_game_state.player_id).first()
 
-        cost = vineyard_data["cost"]
+        if region not in REGIONS or varietal not in REGIONS[region]["grape_varietals"]:
+            logger.warning(f"Invalid region '{region}' or varietal '{varietal}' for purchase.")
+            return None
+
+        cost = REGIONS[region]["base_cost"] + random.randint(-5000, 5000)
         logger.info(f"Attempting to buy vineyard '{vineyard_name}' for ${cost}. Player money: ${db_player.money}")
         if db_player.money >= cost:
             new_vineyard = DBVineyard(
                 name=vineyard_name,
-                varietal=vineyard_data["varietal"],
-                region=vineyard_data["region"],
+                varietal=varietal,
+                region=region,
                 size_acres=random.randint(3, 10),
                 age_of_vines=random.randint(3, 20),
-                soil_type=random.choice(REGIONS[vineyard_data["region"]]["soil_types"]),
+                soil_type=random.choice(REGIONS[region]["soil_types"]),
                 player_id=db_player.id
             )
             self.db.add(new_vineyard)

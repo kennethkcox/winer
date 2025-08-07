@@ -95,36 +95,6 @@ interface GameState {
   months: string[];
 }
 
-// --- Game Data (Constants) - Duplicated from backend for frontend display ---
-const REGIONS = {
-  "Willamette Valley": {
-    "climate": "cool",
-    "soil_types": ["volcanic", "sedimentary"],
-    "grape_varietals": ["Pinot Noir", "Chardonnay", "Pinot Gris"],
-    "base_cost": 50000
-  },
-  "Jura": {
-    "climate": "cool",
-    "soil_types": ["marl", "limestone"],
-    "grape_varietals": ["Savagnin", "Poulsard", "Trousseau", "Chardonnay", "Pinot Noir"],
-    "base_cost": 40000
-  },
-  "Northern Rhône": {
-    "climate": "continental",
-    "soil_types": ["granite", "schist"],
-    "grape_varietals": ["Syrah", "Viognier"],
-    "base_cost": 60000
-  }
-};
-
-const VESSEL_TYPES = {
-  "Stainless Steel Tank": {"capacity": 5000, "cost": 10000, "type": "fermentation/aging"},
-  "Open Top Fermenter": {"capacity": 1000, "cost": 2000, "type": "fermentation"},
-  "Neutral Oak Barrel (225L)": {"capacity": 225, "cost": 500, "type": "aging"},
-  "Concrete Egg": {"capacity": 1500, "cost": 7000, "type": "fermentation/aging"},
-  "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
-};
-
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 export default function Home() {
@@ -135,6 +105,9 @@ export default function Home() {
   const [password, setPassword] = useState<string>("");
   const [token, setToken] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  const [regions, setRegions] = useState<any>({});
+  const [vesselTypes, setVesselTypes] = useState<any>({});
 
   const [showBuyVineyardModal, setShowBuyVineyardModal] = useState(false);
   const [selectedVineyardToBuy, setSelectedVineyardToBuy] = useState<any>(null);
@@ -149,11 +122,44 @@ export default function Home() {
     const storedToken = localStorage.getItem("accessToken");
     if (storedToken) {
       setToken(storedToken);
-      fetchGameState(storedToken);
+      fetchInitialData(storedToken);
     } else {
       setLoading(false);
     }
   }, []);
+
+  const fetchInitialData = async (authToken: string) => {
+    setLoading(true);
+    try {
+      const [regionsRes, vesselTypesRes, gameStateRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/game_data/regions`, { headers: { "Authorization": `Bearer ${authToken}` } }),
+        fetch(`${BACKEND_URL}/game_data/vessel_types`, { headers: { "Authorization": `Bearer ${authToken}` } }),
+        fetch(`${BACKEND_URL}/`, { headers: { "Authorization": `Bearer ${authToken}` } }),
+      ]);
+
+      if (!regionsRes.ok || !vesselTypesRes.ok || !gameStateRes.ok) {
+        if (gameStateRes.status === 401) {
+          setLoginError("Unauthorized. Please log in.");
+          setToken(null);
+          localStorage.removeItem("accessToken");
+        }
+        throw new Error(`HTTP error! Failed to fetch initial data.`);
+      }
+
+      const regionsData = await regionsRes.json();
+      const vesselTypesData = await vesselTypesRes.json();
+      const gameStateData = await gameStateRes.json();
+
+      setRegions(regionsData);
+      setVesselTypes(vesselTypesData);
+      setGameState(gameStateData);
+
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchGameState = async (authToken: string | null = token) => {
     setLoading(true);
@@ -234,7 +240,7 @@ export default function Home() {
       const data = await response.json();
       localStorage.setItem("accessToken", data.access_token);
       setToken(data.access_token);
-      await fetchGameState(data.access_token); // Fetch game state with new token
+      await fetchInitialData(data.access_token); // Fetch all initial data
     } catch (e: any) {
       setLoginError(e.message);
     } finally {
@@ -249,6 +255,8 @@ export default function Home() {
     setLoginError(null);
     setUsername("");
     setPassword("");
+    setRegions({});
+    setVesselTypes({});
     setLoading(false);
   };
 
@@ -264,7 +272,8 @@ export default function Home() {
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
-          vineyard_data: selectedVineyardToBuy,
+          region: selectedVineyardToBuy.region,
+          varietal: selectedVineyardToBuy.varietal,
           vineyard_name: newVineyardName,
         }),
       });
@@ -628,16 +637,20 @@ export default function Home() {
               <Form.Control
                 as="select"
                 onChange={(e) => {
+                  if (!e.target.value) {
+                    setSelectedVineyardToBuy(null);
+                    return;
+                  }
                   const [region, varietal] = e.target.value.split("|");
-                  setSelectedVineyardToBuy({ ...REGIONS[region as keyof typeof REGIONS], varietal, region, cost: REGIONS[region as keyof typeof REGIONS].base_cost + Math.floor(Math.random() * 10000) - 5000 });
+                  setSelectedVineyardToBuy({ region, varietal });
                 }}
                 className="bg-secondary text-white border-secondary"
               >
                 <option value="">-- Select --</option>
-                {Object.entries(REGIONS).map(([regionName, regionData]) => (
+                {Object.entries(regions).map(([regionName, regionData]: [string, any]) => (
                   (regionData as any).grape_varietals.map((varietal: string) => (
                     <option key={`${regionName}-${varietal}`} value={`${regionName}|${varietal}`}>
-                      {varietal} from {regionName} (Est. Cost: ${((regionData as any).base_cost + Math.floor(Math.random() * 10000) - 5000).toLocaleString()})
+                      {varietal} from {regionName} (Base Cost: ${regionData.base_cost.toLocaleString()})
                     </option>
                   ))
                 ))}
@@ -655,7 +668,7 @@ export default function Home() {
                   className="bg-secondary text-white border-secondary"
                 />
                 <Form.Text className="text-muted">
-                  Cost: ${selectedVineyardToBuy.cost?.toLocaleString() || 'N/A'}
+                  The final cost will be determined upon purchase.
                 </Form.Text>
               </Form.Group>
             )}
@@ -684,14 +697,18 @@ export default function Home() {
               <Form.Control
                 as="select"
                 onChange={(e) => {
-                  setSelectedVesselToBuy({ name: e.target.value, ...VESSEL_TYPES[e.target.value as keyof typeof VESSEL_TYPES] });
+                  if (!e.target.value) {
+                    setSelectedVesselToBuy(null);
+                    return;
+                  }
+                  setSelectedVesselToBuy({ name: e.target.value });
                 }}
                 className="bg-secondary text-white border-secondary"
               >
                 <option value="">-- Select --</option>
-                {Object.entries(VESSEL_TYPES).map(([vesselName, vesselData]) => (
+                {Object.entries(vesselTypes).map(([vesselName, vesselData]: [string, any]) => (
                   <option key={vesselName} value={vesselName}>
-                    {vesselName} (Capacity: {(vesselData as any).capacity}L, Cost: ${(vesselData as any).cost.toLocaleString()})
+                    {vesselName} (Capacity: {vesselData.capacity}L, Cost: ${vesselData.cost.toLocaleString()})
                   </option>
                 ))}
               </Form.Control>

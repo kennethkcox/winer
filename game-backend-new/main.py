@@ -65,7 +65,9 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
 
 # --- JWT Authentication ---
-SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key") # Use environment variable for secret
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY or SECRET_KEY == "your-super-secret-key":
+    raise ValueError("FATAL: SECRET_KEY environment variable not set or is the default weak key. Please set a strong, random secret.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -100,17 +102,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @app.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    # In a real app, you would verify the username and password against your database
-    # For this example, we'll use a hardcoded user
-    if form_data.username == "testuser" and form_data.password == "testpassword":
+    # WARNING: INSECURE - This is for demonstration purposes only.
+    # It accepts any non-empty username and password.
+    # In a real application, you MUST implement proper password hashing and verification.
+    logger.warning(f"INSECURE LOGIN: User '{form_data.username}' logged in without password verification.")
+    if form_data.username and form_data.password:
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": form_data.username}, expires_delta=access_token_expires
         )
         return {"access_token": access_token, "token_type": "bearer"}
     raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Incorrect username or password",
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Username and password are required.",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -174,6 +178,16 @@ async def get_bottled_wines(db: Session = Depends(get_db)):
     logger.info("Bottled wines requested.")
     return [Wine.model_validate(w) for w in db_player.bottled_wines]
 
+@app.get("/game_data/regions", response_model=Dict[str, Any])
+async def get_regions_data():
+    logger.info("Regions data requested.")
+    return REGIONS
+
+@app.get("/game_data/vessel_types", response_model=Dict[str, Any])
+async def get_vessel_types_data():
+    logger.info("Vessel types data requested.")
+    return VESSEL_TYPES
+
 @app.get("/available_vineyards_for_purchase", response_model=List[Dict[str, Any]])
 async def get_available_vineyards_for_purchase(db: Session = Depends(get_db)):
     game_instance = Game(db)
@@ -184,7 +198,7 @@ async def get_available_vineyards_for_purchase(db: Session = Depends(get_db)):
 async def buy_vineyard(request: BuyVineyardRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
     logger.info(f"User {current_user} attempting to buy vineyard: {request.vineyard_name}.")
     game_instance = Game(db)
-    new_vineyard = game_instance.buy_vineyard(request.vineyard_data, request.vineyard_name)
+    new_vineyard = game_instance.buy_vineyard(request.region, request.varietal, request.vineyard_name)
     if new_vineyard is None:
         logger.warning(f"Failed to buy vineyard: Not enough money or invalid vineyard data for {request.vineyard_name}.")
         raise HTTPException(status_code=400, detail="Not enough money or invalid vineyard data.")
