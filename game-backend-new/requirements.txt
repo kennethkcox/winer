@@ -5,3 +5,4 @@ pytest
 httpx
 SQLAlchemy
 python-jose[cryptography]
+python-multipart
