@@ -4,7 +4,7 @@ services:
   dockerfile_path: game-frontend-new/Dockerfile
   source_dir: game-frontend-new
   github:
-    repo: placeholder-username/placeholder-repo-name
+    repo: https://github.com/placeholder-username/placeholder-repo-name
     branch: main
   routes:
   - path: /
@@ -15,7 +15,7 @@ services:
   dockerfile_path: game-backend-new/Dockerfile
   source_dir: game-backend-new
   github:
-    repo: placeholder-username/placeholder-repo-name
+    repo: https://github.com/placeholder-username/placeholder-repo-name
     branch: main
   routes:
   - path: /api
