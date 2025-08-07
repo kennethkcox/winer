@@ -1,7 +1,7 @@
 # Terroir & Time: A Natural Winemaking Saga
 
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy?template=https://github.com/placeholder-username/placeholder-repo-name)
-[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/placeholder-username/placeholder-repo-name)
+[![Deploy to DigitalOcean](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=placeholder-username/placeholder-repo-name)
 
 Welcome to "Terroir & Time," a simulation game where you embark on the journey of a natural winemaker. From purchasing your first vineyard to bottling your unique creations, every decision you make will shape your wine and your legacy.
 
