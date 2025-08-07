@@ -3,8 +3,9 @@ services:
     build: ./game-backend-new
     ports:
       - "8000:8000"
-    # volumes: # Commented out for production builds
-    #   - ./game-backend-new:/app
+    volumes:
+      # Persists the game's database file to your local machine in the ./game-backend-new/data directory.
+      - ./game-backend-new/data:/app/data
     environment:
       - PYTHONUNBUFFERED=1 # Ensures Python output is not buffered
     command: uvicorn main:app --host 0.0.0.0 --port 8000
