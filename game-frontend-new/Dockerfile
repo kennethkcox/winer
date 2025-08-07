@@ -17,7 +17,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Create a non-root user
-RUN addgroup --system nextjs && adduser --system --group nextjs
+RUN addgroup -S nextjs && adduser -S -G nextjs nextjs
 USER nextjs
 
 # Copy the built application from the builder stage

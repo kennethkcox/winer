@@ -117,6 +117,49 @@ The following are the primary endpoints:
     *   TypeScript
     *   Bootstrap
 
-## Docker Deployment
+## Docker Deployment (Recommended)
 
-For a more streamlined deployment, you can use Docker to run both the frontend and backend in containers. Dockerfiles are provided in both the `game-backend-new` and `game-frontend-new` directories. You can use a `docker-compose.yml` file to orchestrate the services.
+For a consistent and easy-to-manage setup on any operating system (including Windows, macOS, and Linux), we recommend using Docker. This project is configured to run entirely within Docker containers using a single command.
+
+### Prerequisites
+
+*   [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed and running.
+
+### Running the Application with Docker
+
+We have provided a simple script for Windows users to manage the application.
+
+**On Windows:**
+
+Open a PowerShell terminal and run:
+
+```powershell
+./run-windows.ps1 up
+```
+
+**On macOS and Linux:**
+
+Open a terminal and run:
+```bash
+docker-compose up -d --build
+```
+
+This will build the Docker images for the frontend and backend, start the containers in the background, and persist your game data in the `game-backend-new/data` directory.
+
+Once the containers are running:
+*   The frontend will be accessible at `http://localhost:3000`.
+*   The backend API will be accessible at `http://localhost:8000`.
+
+### Stopping the Application
+
+To stop the application and shut down the containers, run:
+
+**On Windows:**
+```powershell
+./run-windows.ps1 down
+```
+
+**On macOS and Linux:**
+```bash
+docker-compose down
+```
