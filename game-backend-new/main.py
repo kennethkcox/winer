@@ -20,6 +20,7 @@ import logging
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+from functools import lru_cache
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -179,13 +180,15 @@ async def get_bottled_wines(db: Session = Depends(get_db)):
     return [Wine.model_validate(w) for w in db_player.bottled_wines]
 
 @app.get("/game_data/regions", response_model=Dict[str, Any])
+@lru_cache(maxsize=1)
 async def get_regions_data():
-    logger.info("Regions data requested.")
+    logger.info("Regions data requested (caching).")
     return REGIONS
 
 @app.get("/game_data/vessel_types", response_model=Dict[str, Any])
+@lru_cache(maxsize=1)
 async def get_vessel_types_data():
-    logger.info("Vessel types data requested.")
+    logger.info("Vessel types data requested (caching).")
     return VESSEL_TYPES
 
 @app.get("/available_vineyards_for_purchase", response_model=List[Dict[str, Any]])
@@ -194,16 +197,18 @@ async def get_available_vineyards_for_purchase(db: Session = Depends(get_db)):
     logger.info("Available vineyards for purchase requested.")
     return game_instance.get_available_vineyards_for_purchase()
 
-@app.post("/buy_vineyard", response_model=Vineyard)
+from game_models import BuyVineyardResponse
+
+@app.post("/buy_vineyard", response_model=BuyVineyardResponse)
 async def buy_vineyard(request: BuyVineyardRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
     logger.info(f"User {current_user} attempting to buy vineyard: {request.vineyard_name}.")
     game_instance = Game(db)
-    new_vineyard = game_instance.buy_vineyard(request.region, request.varietal, request.vineyard_name)
-    if new_vineyard is None:
+    result = game_instance.buy_vineyard(request.region, request.varietal, request.vineyard_name)
+    if result is None:
         logger.warning(f"Failed to buy vineyard: Not enough money or invalid vineyard data for {request.vineyard_name}.")
         raise HTTPException(status_code=400, detail="Not enough money or invalid vineyard data.")
-    logger.info(f"Vineyard {new_vineyard.name} purchased by {current_user}.")
-    return new_vineyard
+    logger.info(f"Vineyard {result['new_vineyard'].name} purchased by {current_user}.")
+    return BuyVineyardResponse(**result)
 
 @app.post("/tend_vineyard")
 async def tend_vineyard(request: TendVineyardRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):

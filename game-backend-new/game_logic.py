@@ -154,7 +154,7 @@ class Game:
         self.db.refresh(db_player)
         logger.info(f"Advanced to {db_game_state.months[db_game_state.current_month_index]}, {db_game_state.current_year}.")
 
-    def buy_vineyard(self, region: str, varietal: str, vineyard_name: str) -> Optional[Vineyard]:
+    def buy_vineyard(self, region: str, varietal: str, vineyard_name: str) -> Optional[Dict[str, Any]]:
         db_game_state = self.db.query(DBGameState).first()
         db_player = self.db.query(DBPlayer).filter(DBPlayer.id == db_game_state.player_id).first()
 
@@ -181,7 +181,7 @@ class Game:
             self.db.refresh(new_vineyard)
             self.db.refresh(db_player)
             logger.info(f"Successfully purchased vineyard '{vineyard_name}'. New money: ${db_player.money}")
-            return Vineyard.model_validate(new_vineyard)
+            return {"new_vineyard": Vineyard.model_validate(new_vineyard), "updated_money": db_player.money}
         logger.warning(f"Failed to buy vineyard '{vineyard_name}': Not enough money.")
         return None
 

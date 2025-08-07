@@ -281,3 +281,7 @@ class StartAgingRequest(BaseModel):
 class BottleWineRequest(BaseModel):
     wine_prod_index: int
     wine_name: str
+
+class BuyVineyardResponse(BaseModel):
+    new_vineyard: Vineyard
+    updated_money: float
