@@ -2,11 +2,10 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.types import TypeDecorator, VARCHAR
 import json
 
-Base = declarative_base()
+from database import Base
 
 # Custom type for JSON storage
 class JSONEncodedDict(TypeDecorator):
@@ -140,7 +139,7 @@ class DBGameState(Base):
     __tablename__ = "game_state"
     id = Column(Integer, primary_key=True, index=True)
     player_id = Column(Integer, ForeignKey("players.id"))
-    player = relationship("DBPlayer", uselist=False, backref="game_state", cascade="all, delete-orphan")
+    player = relationship("DBPlayer", uselist=False, backref="game_state", cascade="all, delete-orphan", single_parent=True)
     current_year = Column(Integer)
     current_month_index = Column(Integer)
     months = Column(JSONEncodedDict) # Storing as JSON string
@@ -169,6 +168,8 @@ class Grape(BaseModel):
     quantity_kg: float
     quality: int
 
+    model_config = {"from_attributes": True}
+
 class Must(BaseModel):
     id: Optional[int] = None
     varietal: str
@@ -178,6 +179,8 @@ class Must(BaseModel):
     processing_method: str
     destem_crush_method: str
     fermented: bool = False
+
+    model_config = {"from_attributes": True}
 
 class WineInProduction(BaseModel):
     id: Optional[int] = None
@@ -193,6 +196,8 @@ class WineInProduction(BaseModel):
     aging_duration: int = 0
     maceration_actions_taken: int = 0
 
+    model_config = {"from_attributes": True}
+
 class Wine(BaseModel):
     id: Optional[int] = None
     name: str
@@ -201,6 +206,8 @@ class Wine(BaseModel):
     style: str
     quality: int
     bottles: int
+
+    model_config = {"from_attributes": True}
 
 class Vineyard(BaseModel):
     id: Optional[int] = None
@@ -214,11 +221,15 @@ class Vineyard(BaseModel):
     grapes_ready: bool = False
     harvested_this_year: bool = False
 
+    model_config = {"from_attributes": True}
+
 class WineryVessel(BaseModel):
     id: Optional[int] = None
     type: str
     capacity: int
     in_use: bool = False
+
+    model_config = {"from_attributes": True}
 
 class Winery(BaseModel):
     id: Optional[int] = None
@@ -227,6 +238,8 @@ class Winery(BaseModel):
     must_in_production: List[Must] = []
     wines_fermenting: List[WineInProduction] = []
     wines_aging: List[WineInProduction] = []
+
+    model_config = {"from_attributes": True}
 
 class Player(BaseModel):
     id: Optional[int] = None
@@ -238,12 +251,16 @@ class Player(BaseModel):
     grapes_inventory: List[Grape] = []
     bottled_wines: List[Wine] = []
 
+    model_config = {"from_attributes": True}
+
 class GameState(BaseModel):
     id: Optional[int] = None
     player: Player
     current_year: int
     current_month_index: int
     months: List[str]
+
+    model_config = {"from_attributes": True}
 
 # Request Body Models
 class BuyVineyardRequest(BaseModel):

@@ -56,48 +56,7 @@ VESSEL_TYPES = {
 class Game:
     def __init__(self, db: Session):
         self.db = db
-        Base.metadata.create_all(bind=engine) # Create tables if they don't exist
-        self._initialize_game_state_if_empty()
 
-    def _initialize_game_state_if_empty(self):
-        game_state = self.db.query(DBGameState).first()
-        if not game_state:
-            logger.info("Initializing new game state.")
-            # Create initial player
-            player = DBPlayer(name="Winemaker", money=100000, reputation=50)
-            self.db.add(player)
-            self.db.flush() # Flush to get player.id
-
-            # Create initial winery
-            initial_vessels = [
-                DBWineryVessel(type="Stainless Steel Tank", capacity=5000, in_use=False),
-                DBWineryVessel(type="Open Top Fermenter", capacity=1000, in_use=False),
-                DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
-                DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
-                DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
-            ]
-            winery = DBWinery(name="Main Winery", player_id=player.id, vessels=initial_vessels)
-            self.db.add(winery)
-            self.db.flush() # Flush to get winery.id
-            player.winery = winery # Link winery to player
-
-            # Create initial vineyard
-            starting_vineyard = DBVineyard(name="Home Block", varietal="Pinot Noir", region="Willamette Valley", size_acres=5, player_id=player.id)
-            self.db.add(starting_vineyard)
-
-            # Create initial game state
-            months_list = [
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-            ]
-            game_state = DBGameState(player_id=player.id, current_year=2025, current_month_index=0, months=months_list)
-            self.db.add(game_state)
-            self.db.commit()
-            self.db.refresh(player)
-            self.db.refresh(game_state)
-            logger.info("Game state initialized successfully.")
-        else:
-            logger.info("Game state already exists. Loading existing game.")
 
     def get_game_state(self) -> GameState:
         db_game_state = self.db.query(DBGameState).first()
