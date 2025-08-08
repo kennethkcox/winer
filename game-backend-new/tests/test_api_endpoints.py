@@ -1,6 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
-from main import app, get_db
+from main import app, get_db, api_router, initialize_database, get_current_user, lifespan
+from fastapi import FastAPI
 from game_logic import Game
 from typing import Optional
 from game_models import (
@@ -30,26 +31,32 @@ def db_fixture():
         db.close()
         Base.metadata.drop_all(bind=engine)
 
+test_app = FastAPI(lifespan=lifespan)
+test_app.include_router(api_router, prefix="/api")
+
 @pytest.fixture(name="client")
 def client_fixture(db: Session):
     def override_get_db():
         yield db
-    app.dependency_overrides[get_db] = override_get_db
-    client = TestClient(app)
-    # Initialize game state for each test
-    game_instance = Game(db)
-    game_instance._initialize_game_state_if_empty() # Ensure initial state is created
+
+    def override_get_current_user():
+        return db.query(DBPlayer).first()
+
+    initialize_database(db)
+    test_app.dependency_overrides[get_db] = override_get_db
+    test_app.dependency_overrides[get_current_user] = override_get_current_user
+    client = TestClient(test_app)
     yield client
-    app.dependency_overrides.clear()
+    test_app.dependency_overrides.clear()
 
 def test_read_root(client):
-    response = client.get("/")
+    response = client.get("/api")
     assert response.status_code == 200
     assert "player" in response.json()
     assert "current_year" in response.json()
 
 def test_advance_month_endpoint(client, db: Session):
-    response = client.post("/advance_month")
+    response = client.post("/api/advance_month")
     assert response.status_code == 200
     assert "player" in response.json()
     # Verify state change in DB
@@ -57,19 +64,19 @@ def test_advance_month_endpoint(client, db: Session):
     assert db_game_state.current_month_index == 1 # Should advance by one month
 
 def test_get_player(client):
-    response = client.get("/player")
+    response = client.get("/api/player")
     assert response.status_code == 200
     assert "name" in response.json()
     assert "money" in response.json()
 
 def test_get_vineyards(client):
-    response = client.get("/vineyards")
+    response = client.get("/api/vineyards")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
     assert len(response.json()) == 1 # Initial vineyard
 
 def test_get_winery(client):
-    response = client.get("/winery")
+    response = client.get("/api/winery")
     assert response.status_code == 200
     assert "name" in response.json()
     assert "vessels" in response.json()
@@ -79,7 +86,7 @@ def test_buy_vineyard_endpoint_success(client, db: Session):
     initial_money = db_player.money
     vineyard_data = {"region": "Jura", "varietal": "Savagnin", "cost": 40000}
     request_body = BuyVineyardRequest(vineyard_data=vineyard_data, vineyard_name="Test Vineyard")
-    response = client.post("/buy_vineyard", json=request_body.model_dump())
+    response = client.post("/api/buy_vineyard", json=request_body.model_dump())
     assert response.status_code == 200
     assert response.json()["name"] == "Test Vineyard"
     db.refresh(db_player)
@@ -92,7 +99,7 @@ def test_buy_vineyard_endpoint_not_enough_money(client, db: Session):
     db.commit()
     vineyard_data = {"region": "Jura", "varietal": "Savagnin", "cost": 40000}
     request_body = BuyVineyardRequest(vineyard_data=vineyard_data, vineyard_name="Test Vineyard")
-    response = client.post("/buy_vineyard", json=request_body.model_dump())
+    response = client.post("/api/buy_vineyard", json=request_body.model_dump())
     assert response.status_code == 400
     assert "Not enough money" in response.json()["detail"]
     assert db.query(DBVineyard).filter(DBVineyard.name == "Test Vineyard").first() is None
@@ -102,7 +109,7 @@ def test_tend_vineyard_endpoint_success(client, db: Session):
     vineyard_name = db_vineyard.name
     initial_health = db_vineyard.health
     request_body = TendVineyardRequest(vineyard_name=vineyard_name)
-    response = client.post("/tend_vineyard", json=request_body.model_dump())
+    response = client.post("/api/tend_vineyard", json=request_body.model_dump())
     assert response.status_code == 200
     assert "Successfully tended" in response.json()["message"]
     db.refresh(db_vineyard)
@@ -113,7 +120,7 @@ def test_harvest_grapes_endpoint_success(client, db: Session):
     db_vineyard.grapes_ready = True # Manually set for test
     db.commit()
     request_body = HarvestGrapesRequest(vineyard_name=db_vineyard.name)
-    response = client.post("/harvest_grapes", json=request_body.model_dump())
+    response = client.post("/api/harvest_grapes", json=request_body.model_dump())
     assert response.status_code == 200
     assert "varietal" in response.json()
     db.refresh(db_vineyard)
@@ -125,7 +132,7 @@ def test_buy_vessel_endpoint_success(client, db: Session):
     db_winery = db.query(DBWinery).first()
     initial_vessel_count = len(db_winery.vessels)
     request_body = BuyVesselRequest(vessel_type_name="Concrete Egg")
-    response = client.post("/buy_vessel", json=request_body.model_dump())
+    response = client.post("/api/buy_vessel", json=request_body.model_dump())
     assert response.status_code == 200
     db.refresh(db_winery)
     assert len(db_winery.vessels) == initial_vessel_count + 1
@@ -139,7 +146,7 @@ def test_process_grapes_endpoint_success(client, db: Session):
 
     initial_grapes_count = len(db_player.grapes_inventory)
     request_body = ProcessGrapesRequest(grape_index=0, sort_choice="no", destem_crush_method="Destemmed/Crushed")
-    response = client.post("/process_grapes", json=request_body.model_dump())
+    response = client.post("/api/process_grapes", json=request_body.model_dump())
     assert response.status_code == 200
     assert "varietal" in response.json()
     db.refresh(db_player)
@@ -158,12 +165,12 @@ def test_start_fermentation_endpoint_success(client, db: Session):
     vessel_index = db_winery.vessels.index(vessel)
 
     request_body = StartFermentationRequest(must_index=0, vessel_index=vessel_index)
-    response = client.post("/start_fermentation", json=request_body.model_dump())
+    response = client.post("/api/start_fermentation", json=request_body.model_dump())
     assert response.status_code == 200
     assert "varietal" in response.json()
     db.refresh(db_winery)
     db.refresh(vessel)
-    assert not db.query(DBMust).filter(DBMust.id == new_must.id).first() # Must should be gone
+    assert db.query(DBMust).filter(DBMust.id == new_must.id).first() is None
     assert len(db_winery.wines_fermenting) == 1
     assert vessel.in_use
 
@@ -177,7 +184,7 @@ def test_perform_maceration_action_endpoint_success(client, db: Session):
     wine_prod_index = db_winery.wines_fermenting.index(wine_prod)
     initial_quality = wine_prod.quality
     request_body = PerformMacerationActionRequest(wine_prod_index=wine_prod_index, action_type="punch_down")
-    response = client.post("/perform_maceration_action", json=request_body.model_dump())
+    response = client.post("/api/perform_maceration_action", json=request_body.model_dump())
     assert response.status_code == 200
     assert "message" in response.json()
     db.refresh(wine_prod)
@@ -192,11 +199,11 @@ def test_start_aging_endpoint_success(client, db: Session):
     db.refresh(db_winery)
 
     wine_prod_index = db_winery.wines_fermenting.index(wine_prod)
-    vessel = db_winery.vessels[1] # Use another existing vessel for aging
+    vessel = db_winery.vessels[2] # Use another existing vessel for aging
     vessel_index = db_winery.vessels.index(vessel)
 
     request_body = StartAgingRequest(wine_prod_index=wine_prod_index, vessel_index=vessel_index, aging_duration=6)
-    response = client.post("/start_aging", json=request_body.model_dump())
+    response = client.post("/api/start_aging", json=request_body.model_dump())
     assert response.status_code == 200
     assert "varietal" in response.json()
     db.refresh(db_winery)
@@ -222,7 +229,7 @@ def test_bottle_wine_endpoint_success(client, db: Session):
 
     wine_prod_index = db_winery.wines_aging.index(wine_prod)
     request_body = BottleWineRequest(wine_prod_index=wine_prod_index, wine_name="My Test Wine")
-    response = client.post("/bottle_wine", json=request_body.model_dump())
+    response = client.post("/api/bottle_wine", json=request_body.model_dump())
     assert response.status_code == 200
     assert "name" in response.json()
     db.refresh(db_player)

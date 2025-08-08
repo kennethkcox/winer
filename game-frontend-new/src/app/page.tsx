@@ -125,7 +125,18 @@ const VESSEL_TYPES = {
   "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
 };
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const GRAPE_CHARACTERISTICS = {
+    "Pinot Noir": {"color": "red", "ripening_month": 9, "base_quality": 70},
+    "Chardonnay": {"color": "white", "ripening_month": 9, "base_quality": 65},
+    "Pinot Gris": {"color": "white", "ripening_month": 9, "base_quality": 60},
+    "Savagnin": {"color": "white", "ripening_month": 10, "base_quality": 75},
+    "Poulsard": {"color": "red", "ripening_month": 9, "base_quality": 68},
+    "Trousseau": {"color": "red", "ripening_month": 9, "base_quality": 68},
+    "Syrah": {"color": "red", "ripening_month": 9, "base_quality": 72},
+    "Viognier": {"color": "white", "ripening_month": 9, "base_quality": 70},
+};
+
+const BACKEND_URL = "";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -145,6 +156,22 @@ export default function Home() {
   const [selectedVesselToBuy, setSelectedVesselToBuy] = useState<any>(null);
   const [buyVesselError, setBuyVesselError] = useState<string | null>(null);
 
+  const [showProcessGrapesModal, setShowProcessGrapesModal] = useState(false);
+  const [selectedGrapeToProcess, setSelectedGrapeToProcess] = useState<Grape | null>(null);
+  const [processGrapesError, setProcessGrapesError] = useState<string | null>(null);
+  const [sortChoice, setSortChoice] = useState<string>("no");
+  const [destemCrushMethod, setDestemCrushMethod] = useState<string>("Destemmed/Crushed");
+
+  const [showStartFermentationModal, setShowStartFermentationModal] = useState(false);
+  const [selectedMustToFerment, setSelectedMustToFerment] = useState<Must | null>(null);
+  const [selectedVesselForFermentation, setSelectedVesselForFermentation] = useState<number | null>(null);
+  const [startFermentationError, setStartFermentationError] = useState<string | null>(null);
+
+  const [showBottleWineModal, setShowBottleWineModal] = useState(false);
+  const [selectedWineToBottle, setSelectedWineToBottle] = useState<WineInProduction | null>(null);
+  const [newWineName, setNewWineName] = useState<string>("");
+  const [bottleWineError, setBottleWineError] = useState<string | null>(null);
+
   useEffect(() => {
     const storedToken = localStorage.getItem("accessToken");
     if (storedToken) {
@@ -163,7 +190,7 @@ export default function Home() {
       if (authToken) {
         headers["Authorization"] = `Bearer ${authToken}`;
       }
-      const response = await fetch(`${BACKEND_URL}/`, {
+      const response = await fetch(`${BACKEND_URL}/api`, {
         headers: headers,
       });
       if (!response.ok) {
@@ -186,7 +213,7 @@ export default function Home() {
   const handleAdvanceMonth = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/advance_month`, {
+      const response = await fetch(`${BACKEND_URL}/api/advance_month`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -218,7 +245,7 @@ export default function Home() {
       formData.append("username", username);
       formData.append("password", password);
 
-      const response = await fetch(`${BACKEND_URL}/token`, {
+      const response = await fetch(`${BACKEND_URL}/api/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -257,7 +284,7 @@ export default function Home() {
     setBuyVineyardError(null);
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/buy_vineyard`, {
+      const response = await fetch(`${BACKEND_URL}/api/buy_vineyard`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -287,7 +314,7 @@ export default function Home() {
   const handleTendVineyard = async (vineyardName: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/tend_vineyard`, {
+      const response = await fetch(`${BACKEND_URL}/api/tend_vineyard`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -310,7 +337,7 @@ export default function Home() {
   const handleHarvestGrapes = async (vineyardName: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/harvest_grapes`, {
+      const response = await fetch(`${BACKEND_URL}/api/harvest_grapes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -335,7 +362,7 @@ export default function Home() {
     setBuyVesselError(null);
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/buy_vessel`, {
+      const response = await fetch(`${BACKEND_URL}/api/buy_vessel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -353,6 +380,140 @@ export default function Home() {
       setSelectedVesselToBuy(null);
     } catch (e: any) {
       setBuyVesselError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleProcessGrapes = async () => {
+    if (!selectedGrapeToProcess) return;
+    setProcessGrapesError(null);
+    setLoading(true);
+    try {
+      const grapeIndex = gameState?.player.grapes_inventory.findIndex(g => g.id === selectedGrapeToProcess.id) ?? -1;
+      if (grapeIndex === -1) {
+        throw new Error("Selected grape not found in inventory.");
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/process_grapes`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          grape_index: grapeIndex,
+          sort_choice: sortChoice,
+          destem_crush_method: destemCrushMethod,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState();
+      setShowProcessGrapesModal(false);
+    } catch (e: any) {
+      setProcessGrapesError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartFermentation = async () => {
+    if (selectedMustToFerment === null || selectedVesselForFermentation === null) return;
+    setStartFermentationError(null);
+    setLoading(true);
+    try {
+      const mustIndex = gameState?.player.winery.must_in_production.findIndex(m => m.id === selectedMustToFerment.id) ?? -1;
+      if (mustIndex === -1) {
+        throw new Error("Selected must not found in inventory.");
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/start_fermentation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          must_index: mustIndex,
+          vessel_index: selectedVesselForFermentation,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState();
+      setShowStartFermentationModal(false);
+    } catch (e: any) {
+      setStartFermentationError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePerformMaceration = async (wineProdIndex: number) => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/perform_maceration_action`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          wine_prod_index: wineProdIndex,
+          action_type: "Punch Down",
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState();
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBottleWine = async () => {
+    if (!selectedWineToBottle || !newWineName) return;
+    setBottleWineError(null);
+    setLoading(true);
+    try {
+      const wineProdIndex = gameState?.player.winery.wines_aging.findIndex(w => w.id === selectedWineToBottle.id) ?? -1;
+      if (wineProdIndex === -1) {
+        throw new Error("Selected wine not found in aging inventory.");
+      }
+
+      const response = await fetch(`${BACKEND_URL}/api/bottle_wine`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          wine_prod_index: wineProdIndex,
+          wine_name: newWineName,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+      }
+      await fetchGameState();
+      setShowBottleWineModal(false);
+      setNewWineName("");
+    } catch (e: any) {
+      setBottleWineError(e.message);
     } finally {
       setLoading(false);
     }
@@ -581,11 +742,108 @@ export default function Home() {
                             <Card.Title>{grape.varietal} ({grape.vintage})</Card.Title>
                             <Card.Text>Quantity: {grape.quantity_kg} kg</Card.Text>
                             <Card.Text>Quality: {grape.quality}</Card.Text>
+                            <Button
+                              variant="primary"
+                              onClick={() => {
+                                setSelectedGrapeToProcess(grape);
+                                setShowProcessGrapesModal(true);
+                              }}
+                            >
+                              Process
+                            </Button>
                           </Card.Body>
                         </Card>
                       </Col>
                     ))}
                   </Row>
+                )}
+
+                <h5 className="mt-4">Must:</h5>
+                {player.winery?.must_in_production.length === 0 ? (
+                  <Card.Text>No must in production.</Card.Text>
+                ) : (
+                  <Row xs={1} md={2} lg={3} className="g-4">
+                    {player.winery?.must_in_production.map((must, index) => (
+                      <Col key={index}>
+                        <Card className="h-100 bg-secondary text-white">
+                          <Card.Body>
+                            <Card.Title>{must.varietal} ({must.vintage})</Card.Title>
+                            <Card.Text>Quantity: {must.quantity_kg} kg</Card.Text>
+                            <Card.Text>Quality: {must.quality}</Card.Text>
+                            <Button
+                              variant="success"
+                              onClick={() => {
+                                setSelectedMustToFerment(must);
+                                setShowStartFermentationModal(true);
+                              }}
+                            >
+                              Start Fermentation
+                            </Button>
+                          </Card.Body>
+                        </Card>
+                      </Col>
+                    ))}
+                  </Row>
+                )}
+
+                <h5 className="mt-4">Wines Fermenting:</h5>
+                {player.winery?.wines_fermenting.length === 0 ? (
+                    <Card.Text>No wines fermenting.</Card.Text>
+                ) : (
+                    <Row xs={1} md={2} lg={3} className="g-4">
+                        {player.winery?.wines_fermenting.map((wine, index) => (
+                            <Col key={index}>
+                                <Card className="h-100 bg-secondary text-white">
+                                    <Card.Body>
+                                        <Card.Title>{wine.varietal} ({wine.vintage})</Card.Title>
+                                        <Card.Text>Vessel: {wine.vessel_type}</Card.Text>
+                                        <Card.Text>Fermentation Progress: {wine.fermentation_progress}%</Card.Text>
+                                        <Card.Text>Maceration Actions: {wine.maceration_actions_taken}</Card.Text>
+                                        {GRAPE_CHARACTERISTICS[wine.varietal as keyof typeof GRAPE_CHARACTERISTICS]?.color === 'red' && (
+                                            <Button
+                                                variant="info"
+                                                onClick={() => handlePerformMaceration(player.winery.wines_fermenting.findIndex(w => w.id === wine.id))}
+                                                disabled={loading}
+                                            >
+                                                Perform Maceration
+                                            </Button>
+                                        )}
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                )}
+
+                <h5 className="mt-4">Wines Aging:</h5>
+                {player.winery?.wines_aging.length === 0 ? (
+                    <Card.Text>No wines aging.</Card.Text>
+                ) : (
+                    <Row xs={1} md={2} lg={3} className="g-4">
+                        {player.winery?.wines_aging.map((wine, index) => (
+                            <Col key={index}>
+                                <Card className="h-100 bg-secondary text-white">
+                                    <Card.Body>
+                                        <Card.Title>{wine.varietal} ({wine.vintage})</Card.Title>
+                                        <Card.Text>Vessel: {wine.vessel_type}</Card.Text>
+                                        <Card.Text>Aging Progress: {wine.aging_progress}/{wine.aging_duration} months</Card.Text>
+                                        {wine.aging_progress >= wine.aging_duration && (
+                                            <Button
+                                                variant="primary"
+                                                onClick={() => {
+                                                    setSelectedWineToBottle(wine);
+                                                    setShowBottleWineModal(true);
+                                                }}
+                                                disabled={loading}
+                                            >
+                                                Bottle
+                                            </Button>
+                                        )}
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
                 )}
 
                 <h5 className="mt-4">Bottled Wines:</h5>
@@ -704,6 +962,108 @@ export default function Home() {
           </Button>
           <Button variant="primary" onClick={handleBuyVessel} disabled={loading || !selectedVesselToBuy}>
             Buy Vessel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Process Grapes Modal */}
+      <Modal show={showProcessGrapesModal} onHide={() => setShowProcessGrapesModal(false)} centered dialogClassName="modal-dark">
+        <Modal.Header closeButton className="bg-dark text-white">
+          <Modal.Title>Process Grapes</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          {processGrapesError && <Alert variant="danger">{processGrapesError}</Alert>}
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Sort Grapes?</Form.Label>
+              <Form.Control as="select" value={sortChoice} onChange={(e) => setSortChoice(e.target.value)} className="bg-secondary text-white border-secondary">
+                <option value="no">No</option>
+                <option value="yes">Yes (Cost: ${((selectedGrapeToProcess?.quantity_kg || 0) / 100 * 100).toFixed(2)})</option>
+              </Form.Control>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Destem/Crush Method</Form.Label>
+              <Form.Control as="select" value={destemCrushMethod} onChange={(e) => setDestemCrushMethod(e.target.value)} className="bg-secondary text-white border-secondary">
+                <option value="Destemmed/Crushed">Destemmed/Crushed</option>
+                <option value="Partial Destem">Partial Destem</option>
+                <option value="Whole Cluster">Whole Cluster</option>
+              </Form.Control>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="bg-dark border-top border-secondary">
+          <Button variant="secondary" onClick={() => setShowProcessGrapesModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleProcessGrapes} disabled={loading}>
+            Process Grapes
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Start Fermentation Modal */}
+      <Modal show={showStartFermentationModal} onHide={() => setShowStartFermentationModal(false)} centered dialogClassName="modal-dark">
+        <Modal.Header closeButton className="bg-dark text-white">
+          <Modal.Title>Start Fermentation</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          {startFermentationError && <Alert variant="danger">{startFermentationError}</Alert>}
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Select Fermentation Vessel</Form.Label>
+              <Form.Control
+                as="select"
+                onChange={(e) => setSelectedVesselForFermentation(parseInt(e.target.value))}
+                className="bg-secondary text-white border-secondary"
+              >
+                <option value="">-- Select an available vessel --</option>
+                {gameState?.player.winery.vessels.map((vessel, index) => (
+                  !vessel.in_use && (VESSEL_TYPES[vessel.type as keyof typeof VESSEL_TYPES].type.includes("fermentation")) &&
+                  <option key={index} value={index}>
+                    {vessel.type} (Capacity: {vessel.capacity}L)
+                  </option>
+                ))}
+              </Form.Control>
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="bg-dark border-top border-secondary">
+          <Button variant="secondary" onClick={() => setShowStartFermentationModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleStartFermentation} disabled={loading || selectedVesselForFermentation === null}>
+            Start Fermentation
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Bottle Wine Modal */}
+      <Modal show={showBottleWineModal} onHide={() => setShowBottleWineModal(false)} centered dialogClassName="modal-dark">
+        <Modal.Header closeButton className="bg-dark text-white">
+          <Modal.Title>Bottle Wine</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="bg-dark text-white">
+          {bottleWineError && <Alert variant="danger">{bottleWineError}</Alert>}
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Wine Name</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="Enter a name for your wine"
+                value={newWineName}
+                onChange={(e) => setNewWineName(e.target.value)}
+                required
+                className="bg-secondary text-white border-secondary"
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer className="bg-dark border-top border-secondary">
+          <Button variant="secondary" onClick={() => setShowBottleWineModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleBottleWine} disabled={loading || !newWineName}>
+            Bottle Wine
           </Button>
         </Modal.Footer>
       </Modal>
