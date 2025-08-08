@@ -125,6 +125,17 @@ const VESSEL_TYPES = {
   "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
 };
 
+const GRAPE_CHARACTERISTICS = {
+    "Pinot Noir": {"color": "red", "ripening_month": 9, "base_quality": 70},
+    "Chardonnay": {"color": "white", "ripening_month": 9, "base_quality": 65},
+    "Pinot Gris": {"color": "white", "ripening_month": 9, "base_quality": 60},
+    "Savagnin": {"color": "white", "ripening_month": 10, "base_quality": 75},
+    "Poulsard": {"color": "red", "ripening_month": 9, "base_quality": 68},
+    "Trousseau": {"color": "red", "ripening_month": 9, "base_quality": 68},
+    "Syrah": {"color": "red", "ripening_month": 9, "base_quality": 72},
+    "Viognier": {"color": "white", "ripening_month": 9, "base_quality": 70},
+};
+
 const BACKEND_URL = "";
 
 export default function Home() {

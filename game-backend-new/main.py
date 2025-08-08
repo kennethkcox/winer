@@ -31,38 +31,35 @@ def initialize_database(db: Session):
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created or already exist.")
 
-    try:
-        game_state = db.query(DBGameState).first()
-        if not game_state:
-            logger.info("Initializing new game state.")
-            player = DBPlayer(name="Winemaker", money=100000, reputation=50)
-            db.add(player)
-            db.flush()
+    game_state = db.query(DBGameState).first()
+    if not game_state:
+        logger.info("Initializing new game state.")
+        player = DBPlayer(name="Winemaker", money=100000, reputation=50)
+        db.add(player)
+        db.flush()
 
-            initial_vessels = [
-                DBWineryVessel(type="Stainless Steel Tank", capacity=5000, in_use=False),
-                DBWineryVessel(type="Open Top Fermenter", capacity=1000, in_use=False),
-                DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
-                DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
-                DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
-            ]
-            winery = DBWinery(name="Main Winery", player_id=player.id, vessels=initial_vessels)
-            db.add(winery)
-            db.flush()
-            player.winery = winery
+        initial_vessels = [
+            DBWineryVessel(type="Stainless Steel Tank", capacity=5000, in_use=False),
+            DBWineryVessel(type="Open Top Fermenter", capacity=1000, in_use=False),
+            DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
+            DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
+            DBWineryVessel(type="Neutral Oak Barrel (225L)", capacity=225, in_use=False),
+        ]
+        winery = DBWinery(name="Main Winery", player_id=player.id, vessels=initial_vessels)
+        db.add(winery)
+        db.flush()
+        player.winery = winery
 
-            starting_vineyard = DBVineyard(name="Home Block", varietal="Pinot Noir", region="Willamette Valley", size_acres=5, player_id=player.id)
-            db.add(starting_vineyard)
+        starting_vineyard = DBVineyard(name="Home Block", varietal="Pinot Noir", region="Willamette Valley", size_acres=5, player_id=player.id)
+        db.add(starting_vineyard)
 
-            months_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-            game_state = DBGameState(player_id=player.id, current_year=2025, current_month_index=0, months=months_list)
-            db.add(game_state)
-            db.commit()
-            logger.info("Game state initialized successfully.")
-        else:
-            logger.info("Game state already exists. Loading existing game.")
-    finally:
-        db.close()
+        months_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+        game_state = DBGameState(player_id=player.id, current_year=2025, current_month_index=0, months=months_list)
+        db.add(game_state)
+        db.commit()
+        logger.info("Game state initialized successfully.")
+    else:
+        logger.info("Game state already exists. Loading existing game.")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

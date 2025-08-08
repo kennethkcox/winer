@@ -189,13 +189,12 @@ def test_start_aging_success(game_instance, db_session: Session):
     db_session.refresh(db_winery)
 
     wine_prod_index = db_winery.wines_fermenting.index(wine_prod)
-    vessel = db_winery.vessels[1]
+    vessel = db_winery.vessels[2]
     vessel_index = db_winery.vessels.index(vessel)
 
     aged_wine = game_instance.start_aging(wine_prod_index, vessel_index)
     assert aged_wine is not None
     db_session.refresh(db_winery)
-    db_session.refresh(aged_wine)
     db_session.refresh(vessel)
     assert aged_wine.stage == "aging"
     assert vessel.in_use

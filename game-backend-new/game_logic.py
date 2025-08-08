@@ -299,12 +299,11 @@ class Game:
                 winery_id=db_winery.id
             )
             self.db.add(new_wine_in_prod)
-            self.db.delete(must)
+            db_winery.must_in_production.pop(must_index)
             db_player.reputation += 3
             self.db.commit()
             self.db.refresh(new_wine_in_prod)
             self.db.refresh(vessel)
-            self.db.refresh(db_player)
             logger.info(f"Fermentation started for {new_wine_in_prod.varietal} in {vessel.type}.")
             return WineInProduction.model_validate(new_wine_in_prod)
         logger.warning(f"Failed to start fermentation: Vessel {vessel.type} (index {vessel_index}) not available or unsuitable for fermentation, or capacity too low.")
@@ -347,13 +346,16 @@ class Game:
         if wine_prod.fermentation_progress >= 100 and not vessel.in_use and \
            vessel.capacity >= wine_prod.quantity_liters and ("aging" in VESSEL_TYPES[vessel.type]["type"]):
             
+            # Free up the fermentation vessel
+            if wine_prod.vessel_index is not None and 0 <= wine_prod.vessel_index < len(db_winery.vessels):
+                db_winery.vessels[wine_prod.vessel_index].in_use = False
+
             vessel.in_use = True
             wine_prod.vessel_type = vessel.type
             wine_prod.vessel_index = vessel_index
             wine_prod.stage = "aging"
             wine_prod.aging_duration = random.randint(6, 24) # Random aging duration
-            db_winery.wines_aging.append(wine_prod)
-            self.db.delete(wine_prod)
+
             self.db.commit()
             self.db.refresh(wine_prod)
             self.db.refresh(vessel)
