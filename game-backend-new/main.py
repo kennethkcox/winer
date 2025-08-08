@@ -308,5 +308,21 @@ async def bottle_wine(request: BottleWineRequest, db: Session = Depends(get_db),
     logger.info(f"Wine '{bottled_wine.name}' bottled by {current_user.name}.")
     return bottled_wine
 
+game_data_router = APIRouter()
+
+@game_data_router.get("/regions")
+async def get_regions():
+    return REGIONS
+
+@game_data_router.get("/vessel_types")
+async def get_vessel_types():
+    return VESSEL_TYPES
+
+@game_data_router.get("/grape_characteristics")
+async def get_grape_characteristics():
+    return GRAPE_CHARACTERISTICS
+
 app.include_router(api_router, prefix="/api")
+app.include_router(game_data_router, prefix="/api/game_data")
+
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

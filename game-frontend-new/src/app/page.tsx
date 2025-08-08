@@ -95,48 +95,7 @@ interface GameState {
   months: string[];
 }
 
-// --- Game Data (Constants) - Duplicated from backend for frontend display ---
-const REGIONS = {
-  "Willamette Valley": {
-    "climate": "cool",
-    "soil_types": ["volcanic", "sedimentary"],
-    "grape_varietals": ["Pinot Noir", "Chardonnay", "Pinot Gris"],
-    "base_cost": 50000
-  },
-  "Jura": {
-    "climate": "cool",
-    "soil_types": ["marl", "limestone"],
-    "grape_varietals": ["Savagnin", "Poulsard", "Trousseau", "Chardonnay", "Pinot Noir"],
-    "base_cost": 40000
-  },
-  "Northern Rhône": {
-    "climate": "continental",
-    "soil_types": ["granite", "schist"],
-    "grape_varietals": ["Syrah", "Viognier"],
-    "base_cost": 60000
-  }
-};
-
-const VESSEL_TYPES = {
-  "Stainless Steel Tank": {"capacity": 5000, "cost": 10000, "type": "fermentation/aging"},
-  "Open Top Fermenter": {"capacity": 1000, "cost": 2000, "type": "fermentation"},
-  "Neutral Oak Barrel (225L)": {"capacity": 225, "cost": 500, "type": "aging"},
-  "Concrete Egg": {"capacity": 1500, "cost": 7000, "type": "fermentation/aging"},
-  "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
-};
-
-const GRAPE_CHARACTERISTICS = {
-    "Pinot Noir": {"color": "red", "ripening_month": 9, "base_quality": 70},
-    "Chardonnay": {"color": "white", "ripening_month": 9, "base_quality": 65},
-    "Pinot Gris": {"color": "white", "ripening_month": 9, "base_quality": 60},
-    "Savagnin": {"color": "white", "ripening_month": 10, "base_quality": 75},
-    "Poulsard": {"color": "red", "ripening_month": 9, "base_quality": 68},
-    "Trousseau": {"color": "red", "ripening_month": 9, "base_quality": 68},
-    "Syrah": {"color": "red", "ripening_month": 9, "base_quality": 72},
-    "Viognier": {"color": "white", "ripening_month": 9, "base_quality": 70},
-};
-
-const BACKEND_URL = "";
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -172,7 +131,28 @@ export default function Home() {
   const [newWineName, setNewWineName] = useState<string>("");
   const [bottleWineError, setBottleWineError] = useState<string | null>(null);
 
+  const [regions, setRegions] = useState<any>({});
+  const [vesselTypes, setVesselTypes] = useState<any>({});
+  const [grapeCharacteristics, setGrapeCharacteristics] = useState<any>({});
+
   useEffect(() => {
+    const fetchGameData = async () => {
+      try {
+        const [regionsRes, vesselsRes, grapesRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/game_data/regions`),
+          fetch(`${BACKEND_URL}/api/game_data/vessel_types`),
+          fetch(`${BACKEND_URL}/api/game_data/grape_characteristics`),
+        ]);
+        setRegions(await regionsRes.json());
+        setVesselTypes(await vesselsRes.json());
+        setGrapeCharacteristics(await grapesRes.json());
+      } catch (e) {
+        setError("Failed to load game data.");
+      }
+    };
+
+    fetchGameData();
+
     const storedToken = localStorage.getItem("accessToken");
     if (storedToken) {
       setToken(storedToken);
@@ -799,7 +779,7 @@ export default function Home() {
                                         <Card.Text>Vessel: {wine.vessel_type}</Card.Text>
                                         <Card.Text>Fermentation Progress: {wine.fermentation_progress}%</Card.Text>
                                         <Card.Text>Maceration Actions: {wine.maceration_actions_taken}</Card.Text>
-                                        {GRAPE_CHARACTERISTICS[wine.varietal as keyof typeof GRAPE_CHARACTERISTICS]?.color === 'red' && (
+                                        {grapeCharacteristics[wine.varietal as keyof typeof grapeCharacteristics]?.color === 'red' && (
                                             <Button
                                                 variant="info"
                                                 onClick={() => handlePerformMaceration(player.winery.wines_fermenting.findIndex(w => w.id === wine.id))}
@@ -887,12 +867,12 @@ export default function Home() {
                 as="select"
                 onChange={(e) => {
                   const [region, varietal] = e.target.value.split("|");
-                  setSelectedVineyardToBuy({ ...REGIONS[region as keyof typeof REGIONS], varietal, region, cost: REGIONS[region as keyof typeof REGIONS].base_cost + Math.floor(Math.random() * 10000) - 5000 });
+                  setSelectedVineyardToBuy({ ...regions[region as keyof typeof regions], varietal, region, cost: regions[region as keyof typeof regions].base_cost + Math.floor(Math.random() * 10000) - 5000 });
                 }}
                 className="bg-secondary text-white border-secondary"
               >
                 <option value="">-- Select --</option>
-                {Object.entries(REGIONS).map(([regionName, regionData]) => (
+                {Object.entries(regions).map(([regionName, regionData]) => (
                   (regionData as any).grape_varietals.map((varietal: string) => (
                     <option key={`${regionName}-${varietal}`} value={`${regionName}|${varietal}`}>
                       {varietal} from {regionName} (Est. Cost: ${((regionData as any).base_cost + Math.floor(Math.random() * 10000) - 5000).toLocaleString()})
@@ -942,12 +922,12 @@ export default function Home() {
               <Form.Control
                 as="select"
                 onChange={(e) => {
-                  setSelectedVesselToBuy({ name: e.target.value, ...VESSEL_TYPES[e.target.value as keyof typeof VESSEL_TYPES] });
+                  setSelectedVesselToBuy({ name: e.target.value, ...vesselTypes[e.target.value as keyof typeof vesselTypes] });
                 }}
                 className="bg-secondary text-white border-secondary"
               >
                 <option value="">-- Select --</option>
-                {Object.entries(VESSEL_TYPES).map(([vesselName, vesselData]) => (
+                {Object.entries(vesselTypes).map(([vesselName, vesselData]) => (
                   <option key={vesselName} value={vesselName}>
                     {vesselName} (Capacity: {(vesselData as any).capacity}L, Cost: ${(vesselData as any).cost.toLocaleString()})
                   </option>
@@ -1017,8 +997,8 @@ export default function Home() {
                 className="bg-secondary text-white border-secondary"
               >
                 <option value="">-- Select an available vessel --</option>
-                {gameState?.player.winery.vessels.map((vessel, index) => (
-                  !vessel.in_use && (VESSEL_TYPES[vessel.type as keyof typeof VESSEL_TYPES].type.includes("fermentation")) &&
+                {vesselTypes && gameState?.player.winery.vessels.map((vessel, index) => (
+                  !vessel.in_use && (vesselTypes[vessel.type as keyof typeof vesselTypes]?.type.includes("fermentation")) &&
                   <option key={index} value={index}>
                     {vessel.type} (Capacity: {vessel.capacity}L)
                   </option>
