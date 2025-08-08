@@ -190,7 +190,7 @@ export default function Home() {
       if (authToken) {
         headers["Authorization"] = `Bearer ${authToken}`;
       }
-      const response = await fetch(`${BACKEND_URL}/api`, {
+      const response = await fetch(`${BACKEND_URL}/api/gamestate`, {
         headers: headers,
       });
       if (!response.ok) {

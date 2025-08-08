@@ -138,10 +138,10 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-@api_router.get("/", response_model=GameState)
-async def read_root(db: Session = Depends(get_db)):
+@api_router.get("/gamestate", response_model=GameState)
+async def get_game_state(db: Session = Depends(get_db)):
     game_instance = Game(db)
-    logger.info("Root endpoint accessed.")
+    logger.info("Game state requested.")
     return game_instance.get_game_state()
 
 @api_router.post("/advance_month", response_model=GameState)
