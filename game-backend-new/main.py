@@ -126,7 +126,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     # In a real app, you would verify the username and password against your database
     # For this example, we'll use a hardcoded user
-    if form_data.username == "testuser" and form_data.password == "testpassword":
+    if form_data.username == "Winemaker" and form_data.password == "password":
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
             data={"sub": form_data.username}, expires_delta=access_token_expires
@@ -139,9 +139,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
 
 @api_router.get("/gamestate", response_model=GameState)
-async def get_game_state(db: Session = Depends(get_db)):
+async def get_game_state(db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
     game_instance = Game(db)
-    logger.info("Game state requested.")
+    logger.info(f"Game state requested for user {current_user.name}.")
     return game_instance.get_game_state()
 
 @api_router.post("/advance_month", response_model=GameState)
