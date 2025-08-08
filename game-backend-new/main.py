@@ -65,19 +65,10 @@ def initialize_database(db: Session):
 async def lifespan(app: FastAPI):
     db = SessionLocal()
     initialize_database(db)
-    # In a real deployed environment, the 'static' directory would be created by the Docker build.
-    # For local testing, we need to ensure these directories exist.
-    os.makedirs("static/_next", exist_ok=True)
-    os.makedirs("static/assets", exist_ok=True)
-    # Create a dummy index.html for tests to pass
-    with open("static/index.html", "w") as f:
-        f.write("<html><body>Test</body></html>")
-
-    app.mount("/_next", StaticFiles(directory="static/_next"), name="next")
-    app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
     yield
 
 app = FastAPI(lifespan=lifespan)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 api_router = APIRouter()
 
 # Dependency to get DB session
@@ -319,7 +310,3 @@ async def bottle_wine(request: BottleWineRequest, db: Session = Depends(get_db),
     return bottled_wine
 
 app.include_router(api_router, prefix="/api")
-
-@app.get("/{full_path:path}")
-async def serve_frontend(full_path: str):
-    return FileResponse("static/index.html")
