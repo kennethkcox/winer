@@ -136,7 +136,7 @@ const GRAPE_CHARACTERISTICS = {
     "Viognier": {"color": "white", "ripening_month": 9, "base_quality": 70},
 };
 
-const BACKEND_URL = "http://localhost:8000";
+const BACKEND_URL = "";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
