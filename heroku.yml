@@ -1,7 +1,0 @@
-build:
-  docker:
-    web: game-frontend-new/Dockerfile
-    worker: game-backend-new/Dockerfile
-run:
-  web: npm start --prefix game-frontend-new
-  worker: uvicorn main:app --host 0.0.0.0 --port $PORT

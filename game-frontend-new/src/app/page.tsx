@@ -125,7 +125,7 @@ const VESSEL_TYPES = {
   "Amphora (500L)": {"capacity": 500, "cost": 3000, "type": "fermentation/aging"}
 };
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = "";
 
 export default function Home() {
   const [gameState, setGameState] = useState<GameState | null>(null);
@@ -179,7 +179,7 @@ export default function Home() {
       if (authToken) {
         headers["Authorization"] = `Bearer ${authToken}`;
       }
-      const response = await fetch(`${BACKEND_URL}/`, {
+      const response = await fetch(`${BACKEND_URL}/api`, {
         headers: headers,
       });
       if (!response.ok) {
@@ -202,7 +202,7 @@ export default function Home() {
   const handleAdvanceMonth = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/advance_month`, {
+      const response = await fetch(`${BACKEND_URL}/api/advance_month`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
@@ -234,7 +234,7 @@ export default function Home() {
       formData.append("username", username);
       formData.append("password", password);
 
-      const response = await fetch(`${BACKEND_URL}/token`, {
+      const response = await fetch(`${BACKEND_URL}/api/token`, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -273,7 +273,7 @@ export default function Home() {
     setBuyVineyardError(null);
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/buy_vineyard`, {
+      const response = await fetch(`${BACKEND_URL}/api/buy_vineyard`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -303,7 +303,7 @@ export default function Home() {
   const handleTendVineyard = async (vineyardName: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/tend_vineyard`, {
+      const response = await fetch(`${BACKEND_URL}/api/tend_vineyard`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -326,7 +326,7 @@ export default function Home() {
   const handleHarvestGrapes = async (vineyardName: string) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/harvest_grapes`, {
+      const response = await fetch(`${BACKEND_URL}/api/harvest_grapes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -351,7 +351,7 @@ export default function Home() {
     setBuyVesselError(null);
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/buy_vessel`, {
+      const response = await fetch(`${BACKEND_URL}/api/buy_vessel`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -384,7 +384,7 @@ export default function Home() {
         throw new Error("Selected grape not found in inventory.");
       }
 
-      const response = await fetch(`${BACKEND_URL}/process_grapes`, {
+      const response = await fetch(`${BACKEND_URL}/api/process_grapes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -420,7 +420,7 @@ export default function Home() {
         throw new Error("Selected must not found in inventory.");
       }
 
-      const response = await fetch(`${BACKEND_URL}/start_fermentation`, {
+      const response = await fetch(`${BACKEND_URL}/api/start_fermentation`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -448,7 +448,7 @@ export default function Home() {
   const handlePerformMaceration = async (wineProdIndex: number) => {
     setLoading(true);
     try {
-      const response = await fetch(`${BACKEND_URL}/perform_maceration_action`, {
+      const response = await fetch(`${BACKEND_URL}/api/perform_maceration_action`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -482,7 +482,7 @@ export default function Home() {
         throw new Error("Selected wine not found in aging inventory.");
       }
 
-      const response = await fetch(`${BACKEND_URL}/bottle_wine`, {
+      const response = await fetch(`${BACKEND_URL}/api/bottle_wine`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

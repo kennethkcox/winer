@@ -353,7 +353,7 @@ class Game:
             wine_prod.stage = "aging"
             wine_prod.aging_duration = random.randint(6, 24) # Random aging duration
             db_winery.wines_aging.append(wine_prod)
-            db_winery.wines_fermenting.pop(wine_prod_index)
+            self.db.delete(wine_prod)
             self.db.commit()
             self.db.refresh(wine_prod)
             self.db.refresh(vessel)
