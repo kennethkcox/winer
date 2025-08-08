@@ -158,7 +158,7 @@ def test_start_fermentation_success(game_instance, db_session: Session):
     db_session.refresh(vessel)
 
     assert wine_in_prod is not None
-    assert db_session.query(DBMust).filter(DBMust.id == new_must.id).first() is None
+    assert len(db_winery.must_in_production) == 0
     assert len(db_winery.wines_fermenting) == 1
     assert vessel.in_use
 
@@ -192,7 +192,7 @@ def test_start_aging_success(game_instance, db_session: Session):
     vessel = db_winery.vessels[2]
     vessel_index = db_winery.vessels.index(vessel)
 
-    aged_wine = game_instance.start_aging(wine_prod_index, vessel_index)
+    aged_wine = game_instance.start_aging(wine_prod_index, vessel_index, 12)
     assert aged_wine is not None
     db_session.refresh(db_winery)
     db_session.refresh(vessel)

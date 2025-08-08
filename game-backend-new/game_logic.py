@@ -168,7 +168,7 @@ class Game:
         vineyard = self.db.query(DBVineyard).filter(DBVineyard.player_id == db_player.id, DBVineyard.name == vineyard_name).first()
         logger.info(f"Attempting to harvest grapes from '{vineyard_name}'. Grapes ready: {vineyard.grapes_ready}, Harvested this year: {vineyard.harvested_this_year}")
         if vineyard and vineyard.grapes_ready and not vineyard.harvested_this_year:
-            base_yield_per_acre = 1000 # kg
+            base_yield_per_acre = 400 # kg
             yield_kg = int(base_yield_per_acre * vineyard.size_acres * (vineyard.health / 100.0) * random.uniform(0.8, 1.2))
 
             base_quality = GRAPE_CHARACTERISTICS[vineyard.varietal]["base_quality"]
@@ -300,6 +300,7 @@ class Game:
             )
             self.db.add(new_wine_in_prod)
             db_winery.must_in_production.pop(must_index)
+            self.db.delete(must)
             db_player.reputation += 3
             self.db.commit()
             self.db.refresh(new_wine_in_prod)
@@ -317,19 +318,19 @@ class Game:
         if 0 <= wine_prod_index < len(db_winery.wines_fermenting):
             wine_prod = db_winery.wines_fermenting[wine_prod_index]
             logger.info(f"Performing maceration action '{action_type}' on {wine_prod.varietal} (index {wine_prod_index}).")
-            if GRAPE_CHARACTERISTICS[wine_prod.varietal]["color"] == "red":
+            if GRAPE_CHARACTERISTICS[wine_prod.varietal]["color"] == "red" and wine_prod.fermentation_progress < 100:
                 wine_prod.quality = min(100, wine_prod.quality + random.randint(1, 3))
                 wine_prod.maceration_actions_taken += 1
                 self.db.commit()
                 self.db.refresh(wine_prod)
                 logger.info(f"Maceration action '{action_type}' successful. New quality: {wine_prod.quality}.")
                 return True
-            logger.warning(f"Maceration action '{action_type}' not applicable for white wine {wine_prod.varietal}.")
+            logger.warning(f"Maceration action '{action_type}' not applicable for white wine {wine_prod.varietal} or fermentation is complete.")
         else:
             logger.warning(f"Failed to perform maceration action: Invalid wine in production index {wine_prod_index}.")
         return False
 
-    def start_aging(self, wine_prod_index: int, vessel_index: int) -> Optional[WineInProduction]:
+    def start_aging(self, wine_prod_index: int, vessel_index: int, aging_duration: int) -> Optional[WineInProduction]:
         db_game_state = self.db.query(DBGameState).first()
         db_player = self.db.query(DBPlayer).filter(DBPlayer.id == db_game_state.player_id).first()
         db_winery = self.db.query(DBWinery).filter(DBWinery.player_id == db_player.id).first()
@@ -354,7 +355,7 @@ class Game:
             wine_prod.vessel_type = vessel.type
             wine_prod.vessel_index = vessel_index
             wine_prod.stage = "aging"
-            wine_prod.aging_duration = random.randint(6, 24) # Random aging duration
+            wine_prod.aging_duration = aging_duration
 
             self.db.commit()
             self.db.refresh(wine_prod)
