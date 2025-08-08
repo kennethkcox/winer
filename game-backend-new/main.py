@@ -232,7 +232,7 @@ async def harvest_grapes(request: HarvestGrapesRequest, db: Session = Depends(ge
     logger.info(f"Grapes harvested from {request.vineyard_name} by {current_user.name}.")
     return harvested_grapes
 
-@api_router.post("/available_vessel_types_for_purchase", response_model=List[Dict[str, Any]])
+@api_router.get("/available_vessel_types_for_purchase", response_model=List[Dict[str, Any]])
 async def get_available_vessel_types_for_purchase(db: Session = Depends(get_db)):
     game_instance = Game(db)
     logger.info("Available vessel types for purchase requested.")
