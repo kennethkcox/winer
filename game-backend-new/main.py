@@ -290,7 +290,7 @@ async def perform_maceration_action(request: PerformMacerationActionRequest, db:
 async def start_aging(request: StartAgingRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
     logger.info(f"User {current_user.name} attempting to start aging for wine in production index {request.wine_prod_index}.")
     game_instance = Game(db)
-    wine_in_prod = game_instance.start_aging(request.wine_prod_index, request.vessel_index)
+    wine_in_prod = game_instance.start_aging(request.wine_prod_index, request.vessel_index, request.aging_duration)
     if not wine_in_prod:
         logger.warning(f"Failed to start aging: Invalid wine in production or vessel index, or vessel not available for index {request.wine_prod_index}, vessel index {request.vessel_index}.")
         raise HTTPException(status_code=400, detail="Invalid wine in production or vessel index, or vessel not available.")
