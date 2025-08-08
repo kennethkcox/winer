@@ -121,8 +121,8 @@ class DBWinery(Base):
     name = Column(String, default="Main Winery")
     vessels = relationship("DBWineryVessel", backref="winery", cascade="all, delete-orphan")
     must_in_production = relationship("DBMust", backref="winery", cascade="all, delete-orphan")
-    wines_fermenting = relationship("DBWineInProduction", primaryjoin="and_(DBWineInProduction.winery_id==DBWinery.id, DBWineInProduction.stage=='fermenting')", backref="fermenting_winery", cascade="all, delete-orphan")
-    wines_aging = relationship("DBWineInProduction", primaryjoin="and_(DBWineInProduction.winery_id==DBWinery.id, DBWineInProduction.stage=='aging')", backref="aging_winery", cascade="all, delete-orphan")
+    wines_fermenting = relationship("DBWineInProduction", primaryjoin="and_(DBWineInProduction.winery_id==DBWinery.id, DBWineInProduction.stage=='fermenting')", backref="fermenting_winery", cascade="all, delete-orphan", overlaps="aging_winery,wines_aging")
+    wines_aging = relationship("DBWineInProduction", primaryjoin="and_(DBWineInProduction.winery_id==DBWinery.id, DBWineInProduction.stage=='aging')", backref="aging_winery", cascade="all, delete-orphan", overlaps="fermenting_winery,wines_fermenting")
 
 class DBPlayer(Base):
     __tablename__ = "players"
