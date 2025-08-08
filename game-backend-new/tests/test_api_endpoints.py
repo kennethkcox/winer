@@ -199,7 +199,7 @@ def test_start_aging_endpoint_success(client, db: Session):
     db.refresh(db_winery)
 
     wine_prod_index = db_winery.wines_fermenting.index(wine_prod)
-    vessel = db_winery.vessels[1] # Use another existing vessel for aging
+    vessel = db_winery.vessels[2] # Use another existing vessel for aging
     vessel_index = db_winery.vessels.index(vessel)
 
     request_body = StartAgingRequest(wine_prod_index=wine_prod_index, vessel_index=vessel_index, aging_duration=6)
