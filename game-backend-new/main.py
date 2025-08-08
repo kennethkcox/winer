@@ -1,9 +1,9 @@
 import os
-import os
-from fastapi import FastAPI, HTTPException, Depends, Request, status
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Depends, Request, status, APIRouter
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from contextlib import asynccontextmanager
 from game_logic import Game, REGIONS, GRAPE_CHARACTERISTICS, VESSEL_TYPES
 from game_models import (
     Player, Vineyard, Winery, Grape, Must, WineInProduction, Wine, GameState, WineryVessel,
@@ -27,25 +27,18 @@ import game_models
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
-
-# Create database tables and initialize game state
-@app.on_event("startup")
-def on_startup():
+def initialize_database(db: Session):
     Base.metadata.create_all(bind=engine)
     logger.info("Database tables created or already exist.")
 
-    db = SessionLocal()
     try:
         game_state = db.query(DBGameState).first()
         if not game_state:
             logger.info("Initializing new game state.")
-            # Create initial player
             player = DBPlayer(name="Winemaker", money=100000, reputation=50)
             db.add(player)
-            db.flush()  # Flush to get player.id
+            db.flush()
 
-            # Create initial winery
             initial_vessels = [
                 DBWineryVessel(type="Stainless Steel Tank", capacity=5000, in_use=False),
                 DBWineryVessel(type="Open Top Fermenter", capacity=1000, in_use=False),
@@ -55,18 +48,13 @@ def on_startup():
             ]
             winery = DBWinery(name="Main Winery", player_id=player.id, vessels=initial_vessels)
             db.add(winery)
-            db.flush()  # Flush to get winery.id
-            player.winery = winery  # Link winery to player
+            db.flush()
+            player.winery = winery
 
-            # Create initial vineyard
             starting_vineyard = DBVineyard(name="Home Block", varietal="Pinot Noir", region="Willamette Valley", size_acres=5, player_id=player.id)
             db.add(starting_vineyard)
 
-            # Create initial game state
-            months_list = [
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-            ]
+            months_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
             game_state = DBGameState(player_id=player.id, current_year=2025, current_month_index=0, months=months_list)
             db.add(game_state)
             db.commit()
@@ -76,6 +64,25 @@ def on_startup():
     finally:
         db.close()
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db = SessionLocal()
+    initialize_database(db)
+    # In a real deployed environment, the 'static' directory would be created by the Docker build.
+    # For local testing, we need to ensure these directories exist.
+    os.makedirs("static/_next", exist_ok=True)
+    os.makedirs("static/assets", exist_ok=True)
+    # Create a dummy index.html for tests to pass
+    with open("static/index.html", "w") as f:
+        f.write("<html><body>Test</body></html>")
+
+    app.mount("/_next", StaticFiles(directory="static/_next"), name="next")
+    app.mount("/assets", StaticFiles(directory="static/assets"), name="assets")
+    yield
+
+app = FastAPI(lifespan=lifespan)
+api_router = APIRouter()
+
 # Dependency to get DB session
 def get_db():
     db = SessionLocal()
@@ -83,20 +90,6 @@ def get_db():
         yield db
     finally:
         db.close()
-
-# CORS Configuration
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
-origins = [
-    FRONTEND_URL,
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Custom exception handler for HTTPExceptions
 @app.exception_handler(HTTPException)
@@ -112,7 +105,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key") # Use environment 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
@@ -124,7 +117,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -135,13 +128,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception
-        # In a real app, you would fetch the user from the database here
-        # For this example, we'll just return the username
-        return username
+        user = db.query(DBPlayer).filter(DBPlayer.name == username).first()
+        if user is None:
+            raise credentials_exception
+        return user
     except JWTError:
         raise credentials_exception
 
-@app.post("/token")
+@api_router.post("/token")
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     # In a real app, you would verify the username and password against your database
     # For this example, we'll use a hardcoded user
@@ -157,26 +151,21 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-# --- Protected Endpoints (example) ---
-# All game-modifying endpoints should be protected.
-# For demonstration, I'll protect 'advance_month' and 'buy_vineyard'
-# You would apply Depends(get_current_user) to all endpoints that require authentication.
-
-@app.get("/", response_model=GameState)
+@api_router.get("/", response_model=GameState)
 async def read_root(db: Session = Depends(get_db)):
     game_instance = Game(db)
     logger.info("Root endpoint accessed.")
     return game_instance.get_game_state()
 
-@app.post("/advance_month", response_model=GameState)
-async def advance_month(db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} advancing month.")
+@api_router.post("/advance_month", response_model=GameState)
+async def advance_month(db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} advancing month.")
     game_instance = Game(db)
     game_instance.advance_month()
     logger.info("Month advanced.")
     return game_instance.get_game_state()
 
-@app.get("/player", response_model=Player)
+@api_router.get("/player", response_model=Player)
 async def get_player(db: Session = Depends(get_db)):
     game_instance = Game(db)
     db_game_state = db.query(DBGameState).first()
@@ -184,7 +173,7 @@ async def get_player(db: Session = Depends(get_db)):
     logger.info("Player info requested.")
     return Player.model_validate(db_player)
 
-@app.get("/vineyards", response_model=List[Vineyard])
+@api_router.get("/vineyards", response_model=List[Vineyard])
 async def get_vineyards(db: Session = Depends(get_db)):
     game_instance = Game(db)
     db_game_state = db.query(DBGameState).first()
@@ -192,7 +181,7 @@ async def get_vineyards(db: Session = Depends(get_db)):
     logger.info("Vineyards requested.")
     return [Vineyard.model_validate(v) for v in db_player.vineyards]
 
-@app.get("/winery", response_model=Winery)
+@api_router.get("/winery", response_model=Winery)
 async def get_winery(db: Session = Depends(get_db)):
     game_instance = Game(db)
     db_game_state = db.query(DBGameState).first()
@@ -201,7 +190,7 @@ async def get_winery(db: Session = Depends(get_db)):
     logger.info("Winery info requested.")
     return Winery.model_validate(db_winery)
 
-@app.get("/grapes_inventory", response_model=List[Grape])
+@api_router.get("/grapes_inventory", response_model=List[Grape])
 async def get_grapes_inventory(db: Session = Depends(get_db)):
     game_instance = Game(db)
     db_game_state = db.query(DBGameState).first()
@@ -209,7 +198,7 @@ async def get_grapes_inventory(db: Session = Depends(get_db)):
     logger.info("Grapes inventory requested.")
     return [Grape.model_validate(g) for g in db_player.grapes_inventory]
 
-@app.get("/bottled_wines", response_model=List[Wine])
+@api_router.get("/bottled_wines", response_model=List[Wine])
 async def get_bottled_wines(db: Session = Depends(get_db)):
     game_instance = Game(db)
     db_game_state = db.query(DBGameState).first()
@@ -217,54 +206,54 @@ async def get_bottled_wines(db: Session = Depends(get_db)):
     logger.info("Bottled wines requested.")
     return [Wine.model_validate(w) for w in db_player.bottled_wines]
 
-@app.get("/available_vineyards_for_purchase", response_model=List[Dict[str, Any]])
+@api_router.get("/available_vineyards_for_purchase", response_model=List[Dict[str, Any]])
 async def get_available_vineyards_for_purchase(db: Session = Depends(get_db)):
     game_instance = Game(db)
     logger.info("Available vineyards for purchase requested.")
     return game_instance.get_available_vineyards_for_purchase()
 
-@app.post("/buy_vineyard", response_model=Vineyard)
-async def buy_vineyard(request: BuyVineyardRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to buy vineyard: {request.vineyard_name}.")
+@api_router.post("/buy_vineyard", response_model=Vineyard)
+async def buy_vineyard(request: BuyVineyardRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to buy vineyard: {request.vineyard_name}.")
     game_instance = Game(db)
     new_vineyard = game_instance.buy_vineyard(request.vineyard_data, request.vineyard_name)
     if new_vineyard is None:
         logger.warning(f"Failed to buy vineyard: Not enough money or invalid vineyard data for {request.vineyard_name}.")
         raise HTTPException(status_code=400, detail="Not enough money or invalid vineyard data.")
-    logger.info(f"Vineyard {new_vineyard.name} purchased by {current_user}.")
+    logger.info(f"Vineyard {new_vineyard.name} purchased by {current_user.name}.")
     return new_vineyard
 
-@app.post("/tend_vineyard")
-async def tend_vineyard(request: TendVineyardRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to tend vineyard: {request.vineyard_name}.")
+@api_router.post("/tend_vineyard")
+async def tend_vineyard(request: TendVineyardRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to tend vineyard: {request.vineyard_name}.")
     game_instance = Game(db)
     success = game_instance.tend_vineyard(request.vineyard_name)
     if not success:
         logger.warning(f"Failed to tend vineyard: Not enough money or vineyard not found for {request.vineyard_name}.")
         raise HTTPException(status_code=400, detail="Not enough money or vineyard not found.")
-    logger.info(f"Successfully tended {request.vineyard_name} by {current_user}.")
+    logger.info(f"Successfully tended {request.vineyard_name} by {current_user.name}.")
     return {"message": f"Successfully tended {request.vineyard_name}."}
 
-@app.post("/harvest_grapes", response_model=Grape)
-async def harvest_grapes(request: HarvestGrapesRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to harvest grapes from: {request.vineyard_name}.")
+@api_router.post("/harvest_grapes", response_model=Grape)
+async def harvest_grapes(request: HarvestGrapesRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to harvest grapes from: {request.vineyard_name}.")
     game_instance = Game(db)
     harvested_grapes = game_instance.harvest_grapes(request.vineyard_name)
     if not harvested_grapes:
         logger.warning(f"Failed to harvest grapes: Vineyard not found or grapes not ready for harvest for {request.vineyard_name}.")
         raise HTTPException(status_code=400, detail="Vineyard not found or grapes not ready for harvest.")
-    logger.info(f"Grapes harvested from {request.vineyard_name} by {current_user}.")
+    logger.info(f"Grapes harvested from {request.vineyard_name} by {current_user.name}.")
     return harvested_grapes
 
-@app.post("/available_vessel_types_for_purchase", response_model=List[Dict[str, Any]])
+@api_router.post("/available_vessel_types_for_purchase", response_model=List[Dict[str, Any]])
 async def get_available_vessel_types_for_purchase(db: Session = Depends(get_db)):
     game_instance = Game(db)
     logger.info("Available vessel types for purchase requested.")
     return game_instance.get_available_vessel_types_for_purchase()
 
-@app.post("/buy_vessel", response_model=Winery)
-async def buy_vessel(request: BuyVesselRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to buy vessel: {request.vessel_type_name}.")
+@api_router.post("/buy_vessel", response_model=Winery)
+async def buy_vessel(request: BuyVesselRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to buy vessel: {request.vessel_type_name}.")
     game_instance = Game(db)
     new_vessel = game_instance.buy_vessel(request.vessel_type_name)
     if not new_vessel:
@@ -274,60 +263,66 @@ async def buy_vessel(request: BuyVesselRequest, db: Session = Depends(get_db), c
     db_game_state = db.query(DBGameState).first()
     db_player = db.query(DBPlayer).filter(DBPlayer.id == db_game_state.player_id).first()
     db_winery = db.query(DBWinery).filter(DBWinery.player_id == db_player.id).first()
-    logger.info(f"Vessel {new_vessel.type} purchased by {current_user}.")
+    logger.info(f"Vessel {new_vessel.type} purchased by {current_user.name}.")
     return Winery.model_validate(db_winery)
 
-@app.post("/process_grapes", response_model=Must)
-async def process_grapes(request: ProcessGrapesRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to process grapes (index {request.grape_index}).")
+@api_router.post("/process_grapes", response_model=Must)
+async def process_grapes(request: ProcessGrapesRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to process grapes (index {request.grape_index}).")
     game_instance = Game(db)
     processed_must = game_instance.process_grapes(request.grape_index, request.sort_choice, request.destem_crush_method)
     if not processed_must:
         logger.warning(f"Failed to process grapes: Invalid grape index or processing failed for index {request.grape_index}.")
         raise HTTPException(status_code=400, detail="Invalid grape index or processing failed.")
-    logger.info(f"Grapes processed into must: {processed_must.varietal} by {current_user}.")
+    logger.info(f"Grapes processed into must: {processed_must.varietal} by {current_user.name}.")
     return processed_must
 
-@app.post("/start_fermentation", response_model=WineInProduction)
-async def start_fermentation(request: StartFermentationRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to start fermentation for must index {request.must_index}.")
+@api_router.post("/start_fermentation", response_model=WineInProduction)
+async def start_fermentation(request: StartFermentationRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to start fermentation for must index {request.must_index}.")
     game_instance = Game(db)
     wine_in_prod = game_instance.start_fermentation(request.must_index, request.vessel_index)
     if not wine_in_prod:
         logger.warning(f"Failed to start fermentation: Invalid must or vessel index, or vessel not available for must index {request.must_index}, vessel index {request.vessel_index}.")
         raise HTTPException(status_code=400, detail="Invalid must or vessel index, or vessel not available.")
-    logger.info(f"Fermentation started for {wine_in_prod.varietal} by {current_user}.")
+    logger.info(f"Fermentation started for {wine_in_prod.varietal} by {current_user.name}.")
     return wine_in_prod
 
-@app.post("/perform_maceration_action")
-async def perform_maceration_action(request: PerformMacerationActionRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to perform maceration action '{request.action_type}' for wine in production index {request.wine_prod_index}.")
+@api_router.post("/perform_maceration_action")
+async def perform_maceration_action(request: PerformMacerationActionRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to perform maceration action '{request.action_type}' for wine in production index {request.wine_prod_index}.")
     game_instance = Game(db)
     success = game_instance.perform_maceration_action(request.wine_prod_index, request.action_type)
     if not success:
         logger.warning(f"Failed to perform maceration action: Invalid wine in production index or action not applicable for index {request.wine_prod_index}, action {request.action_type}.")
         raise HTTPException(status_code=400, detail="Invalid wine in production index or action not applicable.")
-    logger.info(f"Maceration action '{request.action_type}' performed for wine in production index {request.wine_prod_index} by {current_user}.")
+    logger.info(f"Maceration action '{request.action_type}' performed for wine in production index {request.wine_prod_index} by {current_user.name}.")
     return {"message": f"Maceration action '{request.action_type}' performed."}
 
-@app.post("/start_aging", response_model=WineInProduction)
-async def start_aging(request: StartAgingRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to start aging for wine in production index {request.wine_prod_index}.")
+@api_router.post("/start_aging", response_model=WineInProduction)
+async def start_aging(request: StartAgingRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to start aging for wine in production index {request.wine_prod_index}.")
     game_instance = Game(db)
     wine_in_prod = game_instance.start_aging(request.wine_prod_index, request.vessel_index)
     if not wine_in_prod:
         logger.warning(f"Failed to start aging: Invalid wine in production or vessel index, or vessel not available for index {request.wine_prod_index}, vessel index {request.vessel_index}.")
         raise HTTPException(status_code=400, detail="Invalid wine in production or vessel index, or vessel not available.")
-    logger.info(f"Aging started for {wine_in_prod.varietal} by {current_user}.")
+    logger.info(f"Aging started for {wine_in_prod.varietal} by {current_user.name}.")
     return wine_in_prod
 
-@app.post("/bottle_wine", response_model=Wine)
-async def bottle_wine(request: BottleWineRequest, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
-    logger.info(f"User {current_user} attempting to bottle wine '{request.wine_name}' from index {request.wine_prod_index}.")
+@api_router.post("/bottle_wine", response_model=Wine)
+async def bottle_wine(request: BottleWineRequest, db: Session = Depends(get_db), current_user: DBPlayer = Depends(get_current_user)):
+    logger.info(f"User {current_user.name} attempting to bottle wine '{request.wine_name}' from index {request.wine_prod_index}.")
     game_instance = Game(db)
     bottled_wine = game_instance.bottle_wine(request.wine_prod_index, request.wine_name)
     if not bottled_wine:
         logger.warning(f"Failed to bottle wine: Invalid wine in production index or wine not ready for bottling for index {request.wine_prod_index}.")
         raise HTTPException(status_code=400, detail="Invalid wine in production index or wine not ready for bottling.")
-    logger.info(f"Wine '{bottled_wine.name}' bottled by {current_user}.")
+    logger.info(f"Wine '{bottled_wine.name}' bottled by {current_user.name}.")
     return bottled_wine
+
+app.include_router(api_router, prefix="/api")
+
+@app.get("/{full_path:path}")
+async def serve_frontend(full_path: str):
+    return FileResponse("static/index.html")
