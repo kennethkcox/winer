@@ -35,9 +35,10 @@ COPY --chown=app:app game-backend-new/ ./
 
 # Copy the built frontend assets from the frontend-builder stage
 COPY --from=frontend-builder /app/frontend/out ./static
+RUN chown -R app:app /app/static
 
 # Expose the port
-EXPOSE 8000
+EXPOSE 8080
 
 # Command to run the application
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
