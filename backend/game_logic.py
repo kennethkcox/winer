@@ -299,8 +299,8 @@ class Game:
                 winery_id=db_winery.id
             )
             self.db.add(new_wine_in_prod)
-            self.db.delete(must)
             db_player.reputation += 3
+            self.db.delete(must)
             self.db.commit()
             self.db.refresh(new_wine_in_prod)
             self.db.refresh(vessel)
@@ -352,8 +352,10 @@ class Game:
             wine_prod.vessel_index = vessel_index
             wine_prod.stage = "aging"
             wine_prod.aging_duration = random.randint(6, 24) # Random aging duration
+            wine_prod.stage = "aging"
+            wine_prod.aging_duration = random.randint(6, 24)
+            db_winery.wines_fermenting.remove(wine_prod)
             db_winery.wines_aging.append(wine_prod)
-            self.db.delete(wine_prod)
             self.db.commit()
             self.db.refresh(wine_prod)
             self.db.refresh(vessel)

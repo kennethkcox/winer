@@ -3,11 +3,11 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy frontend package.json and install dependencies
-COPY game-frontend-new/package.json game-frontend-new/package-lock.json ./
+COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 
 # Copy the rest of the frontend source code
-COPY game-frontend-new/ ./
+COPY frontend/ ./
 
 # Build the frontend
 RUN npm run build
@@ -23,7 +23,7 @@ ENV PYTHONUNBUFFERED 1
 WORKDIR /app
 
 # Install backend dependencies
-COPY game-backend-new/requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Create a non-root user
@@ -31,7 +31,7 @@ RUN addgroup --system app && adduser --system --group app
 USER app
 
 # Copy the backend application code
-COPY --chown=app:app game-backend-new/ ./
+COPY --chown=app:app backend/ ./
 
 # Copy the built frontend assets from the frontend-builder stage
 COPY --from=frontend-builder /app/frontend/out ./static
