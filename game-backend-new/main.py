@@ -68,7 +68,6 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
 api_router = APIRouter()
 
 # Dependency to get DB session
@@ -310,3 +309,4 @@ async def bottle_wine(request: BottleWineRequest, db: Session = Depends(get_db),
     return bottled_wine
 
 app.include_router(api_router, prefix="/api")
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
