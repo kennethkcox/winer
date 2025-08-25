@@ -18,10 +18,17 @@ The repository is organized into two main components:
 
 *   `game-backend-new/`: A backend server built with Python and the FastAPI framework. It handles all game logic, state management, and data persistence.
 *   `game-frontend-new/`: A responsive user interface built with Next.js (a React framework) and TypeScript. It communicates with the backend to provide an interactive gaming experience.
+*   `game-offline/`: A new, standalone offline version of the game that runs in your terminal using only Python.
 
-## Getting Started
+## Offline Edition (New!)
 
-To run the full application, you will need to set up and run both the backend and frontend services.
+For those who prefer a simpler, local experience, we have created an offline, terminal-based version of the game. It uses the same core game logic but does not require running a separate frontend or backend server.
+
+To get started with the offline version, please see the documentation here: [Offline Edition `README`](./game-offline/docs/README.md).
+
+## Getting Started (Web Version)
+
+To run the full web application, you will need to set up and run both the backend and frontend services.
 
 ### Prerequisites
 
