@@ -10,34 +10,30 @@ To play the game, you'll need Python and a few libraries.
 
 *   Python 3.9+
 
-### Setup
-
-1.  **Navigate to the offline game directory:**
-    ```bash
-    cd game-offline
-    ```
-
-2.  **Create and activate a virtual environment:**
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
-    ```
-
-3.  **Install the required Python packages:**
-    The game requires `sqlalchemy` and `pydantic`. You can install them using pip:
-    ```bash
-    pip install sqlalchemy pydantic
-    ```
-
 ### Running the Game
 
-Once the setup is complete, you can start the game by running the `main_cli.py` script:
+We have created simple scripts to automate the entire setup and execution process.
 
+**On macOS and Linux:**
+
+Open a terminal, navigate to the `game-offline` directory, and run:
 ```bash
-python main_cli.py
+./run.sh
 ```
 
-The game will start, and you will be presented with the main menu.
+**On Windows:**
+
+Open a PowerShell terminal, navigate to the `game-offline` directory, and run:
+```powershell
+.\run-windows.ps1
+```
+
+The script will automatically:
+1.  Create a Python virtual environment (if it doesn't already exist).
+2.  Install all the required dependencies.
+3.  Start the game.
+
+You will then be presented with the main menu in your terminal.
 
 ## How to Play
 
